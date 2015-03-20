@@ -4178,6 +4178,15 @@ solver_compute_force_gravity( mysolver_t *solver, mesh_t *mesh, int step )
     }
 }
 
+static void
+solver_compute_Oedometer_force( mysolver_t *solver, mesh_t *mesh, int step )
+{
+    if ( Param.includeNonlinearAnalysis == YES ) {
+            compute_addforce_oedometer( mesh, solver, step, Param.theDeltaT, Param.theEndT);
+
+    }
+}
+
 /** Send the forces on dangling nodes to their owner processors */
 static void solver_send_force_dangling( mysolver_t* solver )
 {
@@ -4293,6 +4302,19 @@ solver_geostatic_fix(int step)
                                          Param.theDeltaT, step );
         }
         Timer_Stop( "Compute addforces gravity" );
+    }
+}
+
+
+static void
+solver_Oedometer_fix(int step)
+{
+    if ( Param.includeNonlinearAnalysis == YES ) {
+
+        boundaries_displacements_fix( Global.myMesh, Global.mySolver, Param.theDomainZ,
+        		                      Param.theDomainY, Param.theDomainX,
+                                      Param.theDeltaT, step );
+
     }
 }
 
@@ -4462,6 +4484,7 @@ static void solver_run()
         solver_compute_force_stiffness( Global.mySolver, Global.myMesh, Global.theK1, Global.theK2 );
         solver_compute_force_damping( Global.mySolver, Global.myMesh, Global.theK1, Global.theK2 );
         solver_compute_force_gravity( Global.mySolver, Global.myMesh, step );
+        solver_compute_Oedometer_force( Global.mySolver, Global.myMesh, step );
         solver_compute_force_nonlinear( Global.mySolver, Global.myMesh, Param.theDeltaTSquared );
 
         Timer_Stop( "Compute Physics" );
@@ -4477,6 +4500,7 @@ static void solver_run()
         Timer_Start( "Compute Physics" );
         solver_compute_displacement( Global.mySolver, Global.myMesh );
         solver_geostatic_fix( step );
+        solver_Oedometer_fix( step);
         solver_load_fixedbase_displacements( Global.mySolver, step );
         Timer_Stop( "Compute Physics" );
 

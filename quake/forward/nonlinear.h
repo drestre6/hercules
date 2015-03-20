@@ -194,6 +194,21 @@ void nonlinear_print_stats(int32_t *nonlinElementsCount,
 void nonlinear_stats(int32_t myID, int32_t theGroupSize);
 void nonlinear_solver_init(int32_t myID, mesh_t *myMesh, double depth);
 
+void boundaries_displacements_fix( mesh_t     *myMesh,
+                                  mysolver_t *mySolver,
+                                  double      totalDomainDepth,
+                                  double      totalDomainEastWest,
+                                  double      totalDomainNorthSouth,
+                                  double      dt,
+                                  int         step );
+
+void compute_addforce_oedometer( mesh_t     *myMesh,
+                               mysolver_t *mySolver,
+                               int         step,
+                               double      dt, double TotalTime );
+
+double smooth_rise_factor_oedometer(int32_t step, double dt, double LoadingT);
+
 /* -------------------------------------------------------------------------- */
 /*                   Auxiliary tensor manipulation methods                    */
 /* -------------------------------------------------------------------------- */

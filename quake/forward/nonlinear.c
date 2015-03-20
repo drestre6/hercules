@@ -2406,6 +2406,66 @@ return zone;
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
+double smooth_rise_factor_oedometer(int32_t step, double dt, double LoadingT) {
+
+    /* TODO: Consider to eliminate t1, i.e. t1 = 0 */
+
+    static noyesflag_t preloaded = NO;
+    static double n1, n2, n3, n22, n31;
+    static double C1, C2, B1, B2;
+    static int    N;
+
+
+    /* Pre-load constants, executed only once */
+    if ( preloaded == NO ) {
+
+        N = (int)(LoadingT / dt);
+
+        n1 = (int)( 0.1 * N );
+        n2 = (int)( 0.5 * N );
+        n3 = (int)( 0.9 * N );
+
+        n31 = n3 - n1;
+
+        C1 = 2.0 / ( n31 * (n2 - n1) ) ;
+        C2 = 2.0 / ( n31 * (n2 - n3) ) ;
+
+        B1 = 0.5 * n1 * n1;
+        B2 = 0.5 * ( n31*(n2-n3) + n3*n3 );
+
+        preloaded = YES;
+    }
+
+    /* Started dynamic simulation (the most common case) */
+    if ( step > n3 ) {
+        return 1.0;
+    }
+
+    /* Has not even really started (a zeros-buffer zone) */
+    if ( step <= n1 ) {
+        return 0.0;
+    }
+
+    /* The actual geostatic loading cases */
+
+    n22 = 0.5 * step * step;
+
+    if ( (step > n1) && (step <= n2) ) {
+
+        return C1 * (n22 - step*n1 + B1);
+
+    } else if ( (step > n2) && (step <= n3) ) {
+
+        return C2 * (n22 - step*n3 + B2);
+    }
+
+    /* The code should never get here */
+    fprintf(stderr, "Smooth Rise Error %d %d\n", N, step);
+    MPI_Abort(MPI_COMM_WORLD, ERROR);
+    exit(1);
+}
+
+
 
 double smooth_rise_factor(int32_t step, double dt) {
 
@@ -2599,6 +2659,72 @@ void compute_addforce_gravity( mesh_t     *myMesh,
     return;
 }
 
+void compute_addforce_oedometer( mesh_t     *myMesh,
+                               mysolver_t *mySolver,
+                               int         step,
+                               double      dt, double TotalTime )
+{
+
+
+    int32_t   eindex;
+    double   rho, W=0.2*2;
+
+    /* Loop on the number of elements */
+    for (eindex = 0; eindex < myMesh->lenum; eindex++) {
+
+        int      i;
+        elem_t  *elemp;
+        edata_t *edata;
+        double   h, h3;
+
+
+
+        /* Capture element data structure */
+        elemp = &myMesh->elemTable[eindex];
+        edata = (edata_t *)elemp->data;
+
+        double z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[elemp->lnid[0]].z;
+
+/*         capture element data */
+        h   = (double)edata->edgesize;
+        rho = (double)edata->rho;
+
+/*         Compute nodal total weight contribution
+        h3 = h * h * h;
+        W  = h3 * rho * G * 0.125;  volume x density x gravity / 8 */
+
+/*        if ( step == theGeostaticFinalStep+10 ) {
+            totalWeight += W*dt*dt*8;
+        }*/
+
+        /* Loop over the 8 element nodes:
+         * Add the gravitational force contribution calculated with respect
+         * to the current time-step to the nodal force vector.
+         */
+        if ( z_m == 0) {
+        	for (i = 0; i < 4; i++) {
+
+        		int32_t    lnid;
+        		fvector_t *nodalForce;
+
+        		lnid       = elemp->lnid[i];
+        		nodalForce = mySolver->force + lnid;
+
+        		/* Force due to gravity is positive in Z-axis */
+        		nodalForce->f[2] += W * smooth_rise_factor_oedometer(step, dt, TotalTime*0.8) * h * h *  dt * dt / 4.0;
+
+        	} /* element nodes */
+        }
+
+    }
+
+/*    if ( step > theGeostaticFinalStep ) {
+        add_force_reactions(myMesh, mySolver);
+    }*/
+
+    return;
+}
+
 void compute_bottom_reactions ( mesh_t     *myMesh,
                                 mysolver_t *mySolver,
                                 fmatrix_t (*theK1)[8],
@@ -2690,6 +2816,45 @@ void geostatic_displacements_fix( mesh_t     *myMesh,
             fvector_t *tm2Disp;
             tm2Disp = mySolver->tm2 + nindex;
             tm2Disp->f[2] = 0;
+        }
+    }
+
+    return;
+}
+
+void boundaries_displacements_fix( mesh_t     *myMesh,
+                                  mysolver_t *mySolver,
+                                  double      totalDomainDepth,
+                                  double      totalDomainEastWest,
+                                  double      totalDomainNorthSouth,
+                                  double      dt,
+                                  int         step )
+{
+
+    int32_t nindex;
+
+    for ( nindex = 0; nindex < myMesh->nharbored; nindex++ ) {
+
+        double z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].z;
+        double x_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].x;
+        double y_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].y;
+
+        if ( z_m == totalDomainDepth ) {
+            fvector_t *tm2Disp;
+            tm2Disp = mySolver->tm2 + nindex;
+            tm2Disp->f[0] = 0;
+            tm2Disp->f[1] = 0;
+            tm2Disp->f[2] = 0;
+        } else if ( ( x_m == 0 ) ||
+        		    ( x_m == totalDomainNorthSouth ) ||
+        		    ( y_m == 0 ) ||
+        		    ( y_m == totalDomainEastWest ) ) {
+
+            fvector_t *tm2Disp;
+            tm2Disp = mySolver->tm2 + nindex;
+            tm2Disp->f[0] = 0;
+            tm2Disp->f[1] = 0;
+
         }
     }
 
