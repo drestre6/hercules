@@ -3120,6 +3120,9 @@ void compute_nonlinear_state ( mesh_t     *myMesh,
 			/* Calculate total strains */
 			tstrains->qp[i] = point_strain(u, lx, ly, lz, h);
 
+			/* Freeze plastic strains */
+            pstrains1->qp[i] = copy_tensor ( pstrains2->qp[i] );     /* strain predictor: equal to the previous strain tens   */
+
 			/* Calculate stresses */
 			if ( ( theMaterialModel == LINEAR ) || ( step <= theGeostaticFinalStep ) ){
 				stresses->qp[i]  = point_stress ( tstrains->qp[i], mu, lambda );
