@@ -93,8 +93,16 @@ int isThisElementNonLinear(mesh_t *myMesh, int32_t eindex) {
 	elemp = &myMesh->elemTable[eindex];
 	edata = (edata_t *)elemp->data;
 
-	if ( ( edata->Vs <=  theVsLimits[thePropertiesCount-1] ) && ( edata->Vs >=  theVsLimits[0] ) )
+	double x_m = (myMesh->ticksize)*(double)myMesh->nodeTable[elemp->lnid[0]].x;
+	double y_m = (myMesh->ticksize)*(double)myMesh->nodeTable[elemp->lnid[0]].y;
+	double z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[elemp->lnid[0]].z;
+
+	if ( ( x_m >= 2.0 ) && ( x_m < 6.0) && ( y_m >= 2.0 ) && ( y_m < 6.0) && ( z_m >= 2.0 ) && ( z_m < 6.0)  )
 		return YES;
+
+
+//	if ( ( edata->Vs <=  theVsLimits[thePropertiesCount-1] ) && ( edata->Vs >=  theVsLimits[0] ) )
+//		return YES;
 
 	return NO;
 }
@@ -2410,14 +2418,14 @@ double smooth_rise_factor_oedometer(int32_t step, double dt, double LoadingT) {
 
     /* TODO: Consider to eliminate t1, i.e. t1 = 0 */
 
-    static noyesflag_t preloaded = NO;
-    static double n1, n2, n3, n22, n31;
-    static double C1, C2, B1, B2;
-    static int    N;
+    // static noyesflag_t preloaded = NO;
+     double n1, n2, n3, n22, n31;
+     double C1, C2, B1, B2;
+     int    N;
 
 
-    /* Pre-load constants, executed only once */
-    if ( preloaded == NO ) {
+//    /* Pre-load constants, executed only once */
+//    if ( preloaded == NO ) {
 
         N = (int)(LoadingT / dt);
 
@@ -2433,8 +2441,8 @@ double smooth_rise_factor_oedometer(int32_t step, double dt, double LoadingT) {
         B1 = 0.5 * n1 * n1;
         B2 = 0.5 * ( n31*(n2-n3) + n3*n3 );
 
-        preloaded = YES;
-    }
+//        preloaded = YES;
+//    }
 
     /* Started dynamic simulation (the most common case) */
     if ( step > n3 ) {
@@ -2667,7 +2675,8 @@ void compute_addforce_oedometer( mesh_t     *myMesh,
 
 
     int32_t   eindex;
-    double   rho, W=0.2*2;
+    double   rho, W=60000;
+    double po=90;
 
     /* Loop on the number of elements */
     for (eindex = 0; eindex < myMesh->lenum; eindex++) {
@@ -2675,7 +2684,7 @@ void compute_addforce_oedometer( mesh_t     *myMesh,
         int      i;
         elem_t  *elemp;
         edata_t *edata;
-        double   h, h3;
+        double   h, factor;
 
 
 
@@ -2701,6 +2710,11 @@ void compute_addforce_oedometer( mesh_t     *myMesh,
          * Add the gravitational force contribution calculated with respect
          * to the current time-step to the nodal force vector.
          */
+
+
+        if (step==9000)
+        	po=89;
+
         if ( z_m == 0) {
         	for (i = 0; i < 4; i++) {
 
@@ -2711,7 +2725,20 @@ void compute_addforce_oedometer( mesh_t     *myMesh,
         		nodalForce = mySolver->force + lnid;
 
         		/* Force due to gravity is positive in Z-axis */
-        		nodalForce->f[2] += W * smooth_rise_factor_oedometer(step, dt, TotalTime*0.8) * h * h *  dt * dt / 4.0;
+
+        		/* load-unload regime */
+        		int st1 = (int)(TotalTime / dt / 4.0 );
+        		int st2 = (int)( 3 * st1 );
+
+        		if ( step <= st1 )
+        			factor = smooth_rise_factor_oedometer(step, dt, TotalTime/4.0);
+        		else if ( (step > st1) && ( step <= st2 ) )
+        			factor = 1.0 - 2.0 * smooth_rise_factor_oedometer(step-st1, dt, TotalTime/2.0);
+        		else
+        			factor = -1.0 + smooth_rise_factor_oedometer(step-st1-st2, dt, TotalTime/4.0);
+
+
+        		nodalForce->f[2] += W * factor * h * h *  dt * dt / 4.0;
 
         	} /* element nodes */
         }
@@ -2722,6 +2749,7 @@ void compute_addforce_oedometer( mesh_t     *myMesh,
         add_force_reactions(myMesh, mySolver);
     }*/
 
+    po=95;
     return;
 }
 
