@@ -1496,38 +1496,38 @@ void material_update ( nlconstants_t constants, tensor_t e_n, tensor_t ep, doubl
 		/* Spectral decomposition of the sigma_trial tensor*/
 		vect1_t   n1, n2, n3, sigma_ppal_trial;
 		tensor_t  stressRecomp;
-		int edge;
+		int edge, flagSpecDec=0;
 
-//		if (theTensionCutoff == YES) {
-//			specDecomp(sigma_trial, &n1, &n2, &n3, &sigma_ppal_trial); /* eig_values.x > eig_values.y > eig_values.z   */
-//			double ST_fnc = get_ShearTensionLimits (phi, c, sigma_ppal_trial.x , sigma_ppal_trial.z); /* shear-tension function */
-//
-//			if ( (ST_fnc > 0) && ( sigma_ppal_trial.x > 0 ) ) {
-//				/* Perform tension-cutoff  */
-//				TensionCutoff_Return( kappa, mu, phi, c, sigma_ppal_trial, &sigma_ppal );
-//
-//				/* get updated stress tensor "sigma" */
-//				stressRecomp = specRecomp(sigma_ppal, n1, n2, n3);
-//				*sigma  = subtrac_tensors(stressRecomp,sigma0);
-//
-//				estrain = elastic_strains (*sigma, mu, kappa);
-//				*epl  = subtrac_tensors ( e_n, estrain );
-//
-//				/* updated invariants*/
-//				*fs = sigma_ppal.x;
-//				return;
-//
-//			} else if ( (ST_fnc > 0) && ( sigma_ppal_trial.x <= 0 ) ) { /* This is an elastic state in the tension zone  */
-//				*epl    = copy_tensor(ep);
-//				*sigma  = copy_tensor(stresses); /* return stresses without self-weight  */
-//				*ep_bar = ep_barn;
-//				*fs     = sigma_ppal_trial.x;
-//				return;
-//			}
-//
-//			/* set the spectral decomposition flag to 1 to avoid double computation  */
-//		    flagSpecDec = 1;
-//		}
+		if (theTensionCutoff == YES) {
+			specDecomp(sigma_trial, &n1, &n2, &n3, &sigma_ppal_trial); /* eig_values.x > eig_values.y > eig_values.z   */
+			double ST_fnc = get_ShearTensionLimits (phi, c, sigma_ppal_trial.x , sigma_ppal_trial.z); /* shear-tension function */
+
+			if ( (ST_fnc > 0) && ( sigma_ppal_trial.x > 0 ) ) {
+				/* Perform tension-cutoff  */
+				TensionCutoff_Return( kappa, mu, phi, c, sigma_ppal_trial, &sigma_ppal );
+
+				/* get updated stress tensor "sigma" */
+				stressRecomp = specRecomp(sigma_ppal, n1, n2, n3);
+				*sigma  = subtrac_tensors(stressRecomp,sigma0);
+
+				estrain = elastic_strains (*sigma, mu, kappa);
+				*epl  = subtrac_tensors ( e_n, estrain );
+
+				/* updated invariants*/
+				*fs = sigma_ppal.x;
+				return;
+
+			} else if ( (ST_fnc > 0) && ( sigma_ppal_trial.x <= 0 ) ) { /* This is an elastic state in the tension zone  */
+				*epl    = copy_tensor(ep);
+				*sigma  = copy_tensor(stresses); /* return stresses without self-weight  */
+				*ep_bar = ep_barn;
+				*fs     = sigma_ppal_trial.x;
+				return;
+			}
+
+			/* set the spectral decomposition flag to 1 to avoid double computation  */
+		    flagSpecDec = 1;
+		}
 
 		Fs_pr = compute_yield_surface_stateII ( J3_pr, J2_pr, I1_pr, alpha, phi, sigma_trial) - compute_hardening(gamma,c,h,ep_barn,phi);
 
@@ -1540,7 +1540,7 @@ void material_update ( nlconstants_t constants, tensor_t e_n, tensor_t ep, doubl
 		}
 
 		/* Spectral decomposition */
-//		if ( flagSpecDec == 0 )
+		if ( flagSpecDec == 0 )
 			specDecomp(sigma_trial, &n1, &n2, &n3, &sigma_ppal_trial); /* eig_values.x > eig_values.y > eig_values.z   */
 
 		/* Return to the main plane */
@@ -1577,26 +1577,24 @@ void material_update ( nlconstants_t constants, tensor_t e_n, tensor_t ep, doubl
 			}
 		}
 
-		/* Tension cutoff check   */
+/*		 Tension cutoff check
 		if ( (theTensionCutoff == YES) && ( sigma_ppal.x > 0 ) )  {
 
-			/* Perform tension-cutoff  */
+			 Perform tension-cutoff
 			TensionCutoff_Return( kappa, mu, phi, c, sigma_ppal_trial, &sigma_ppal );
 
-			/* get updated stress tensor "sigma" */
+			 get updated stress tensor "sigma"
 			stressRecomp = specRecomp(sigma_ppal, n1, n2, n3);
 			*sigma  = subtrac_tensors(stressRecomp,sigma0);
 
 			estrain = elastic_strains (*sigma, mu, kappa);
 			*epl  = subtrac_tensors ( e_n, estrain );
 
-			/* updated invariants*/
+			 updated invariants
 			*fs = sigma_ppal.x;
 			return;
-
 		}
-
-		/* Done tension cutoff check  */
+		 Done tension cutoff check  */
 
 		/* get updated stress tensor "sigma" */
 		stressRecomp = specRecomp(sigma_ppal, n1, n2, n3);
@@ -3056,6 +3054,9 @@ void compute_nonlinear_state ( mesh_t     *myMesh,
 	int     i;
 	int32_t eindex, nl_eindex;
 
+	double po=90;
+
+
 
 	/* Loop over the number of local elements */
 	for (nl_eindex = 0; nl_eindex < myNonlinElementsCount; nl_eindex++) {
@@ -3063,6 +3064,9 @@ void compute_nonlinear_state ( mesh_t     *myMesh,
 		elem_t        *elemp;
 		edata_t       *edata;
 		nlconstants_t *enlcons;
+
+		if ( (step==11570) && (nl_eindex==7) )
+			po=89;
 
 		double         h;          /* Element edge-size in meters   */
 		double         alpha, k;   /* Drucker-Prager constants      */
@@ -3431,6 +3435,11 @@ void print_nonlinear_stations(mesh_t     *myMesh,
     	elem_t         *elemp;
 		edata_t        *edata;
     	nlconstants_t  *enlcons;
+
+
+    	double po=90;
+		if ( (step==11570)  )
+			po=89;
 
     	nl_eindex    = myStationsElementIndices[iStation];
     	eindex       = myNonlinElementsMapping[nl_eindex];
