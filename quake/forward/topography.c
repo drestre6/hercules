@@ -341,7 +341,8 @@ double point_elevation ( double xo, double yo ) {
 			zp = thebase_zcoord;
 		else {
 			psi = R / r_ell;
-			zp  =  thebase_zcoord - delH * ( 1.0 - 3.0 * psi * psi + 2.0 * psi * psi * psi );
+			// zp  =  thebase_zcoord - delH * ( 1.0 - 3.0 * psi * psi + 2.0 * psi * psi * psi ); //Gaussian profile
+			zp  =  thebase_zcoord - delH * sqrt( 1.0 -  psi * psi  ); // spherical profile
 		}
 
 	} else {
@@ -456,6 +457,11 @@ void topo_searchII ( octant_t *leaf, double ticksize, edata_t *edata, int *to_to
 
 	emin = ( (tick_t)1 << (PIXELLEVEL - theMaxoctlevel) ) * ticksize;
 	double Del = esize / (np - 1);
+
+	double po=90;
+
+	if ( (xo==500) && (yo==640.625) && (zo==218.75) )
+		po=90;
 
 	/* check for air element with bottom face on flat topo surface */
 	double cnt = 0;
@@ -1166,6 +1172,11 @@ void topography_elements_count(int32_t myID, mesh_t *myMesh ) {
 		xo = (node0dat->x)*(myMesh->ticksize);
 		yo = (node0dat->y)*(myMesh->ticksize);
 		zo = (node0dat->z)*(myMesh->ticksize);
+
+		double po=90;
+
+		if ( (xo==500) && (yo==640.625) && (zo==218.75) )
+			po=90;
 
         /* get element size */
 		esize = edata->edgesize;
