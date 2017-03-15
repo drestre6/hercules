@@ -841,64 +841,12 @@ int
 layer_prop( double east_m, double north_m, double depth_m, cvmpayload_t* payload, double ticksize, double theFact )
 {
 
-	double Pelev, z0, z1, H, Del1, Del2, Del3_FL, Del3_SL, aa=0, bb=0;
-
-	Pelev = point_elevation( north_m, east_m );
-	H     = theHR * theLy;
-	Del1  = theFLR * H; /* first and second layer depth   */
-	Del2  = theSLR * H;
-
-
-	Del3_FL  = theFLRaiR  * H;
-	Del3_SL  = theSLRaiR  * H;
-
-
-	if (Del3_FL < 0)
-		aa = abs(Del3_FL);
-
-	if (Del3_SL < 0)
-		bb = abs(Del3_SL);
-
-	/* este es h1 para discretizacion en los tres estratos  */
-	double h1 = H + Del2 - ( aa + bb );
-
-	/* este es h1 para discretizacion SOLO en el primer estrato  */
-	//double h1 = H + Del1 - ( aa );
-
-
-	z0 = Pelev;
-
-	/* este es z1 para discretizacion en los tres estratos  */
-	z1 = thebase_zcoord + (Del1 + Del2) - h1/H * (thebase_zcoord - Pelev);
-
-	/* este es z1 para discretizacion SOLO en el primer estrato  */
-	//z1 = thebase_zcoord + (Del1) - h1/H * (thebase_zcoord - Pelev);
-
-
-	double emin = ( (tick_t)1 << (PIXELLEVEL - theMaxoctlevel) ) * ticksize;
-/*	double source_sph = (east_m - The_hypocenter_long_deg) * (east_m - The_hypocenter_long_deg) +
-						(north_m - The_hypocenter_lat_deg) * (north_m - The_hypocenter_lat_deg) +
-						(depth_m - The_hypocenter_deep) * (depth_m - The_hypocenter_deep);
-
-	source_sph = sqrt (source_sph); */
-
-	//if ( ( ( depth_m >= z0  ) && ( depth_m < z1 ) ) || ( source_sph < ( theVsHS / theFact / 1.0 ) * 2.0  )  ) {
-	if  ( ( depth_m >= z0  ) && ( depth_m < z1 ) )  {
-			payload->Vp = emin * theFact * theVpHS / theVsHS;
-			payload->Vs = emin * theFact;
-			payload->rho = therhoHS;
-
-			return 0;
-		}
-
 	/* Point in Half-space */
 		payload->Vp = theVpHS;
 		payload->Vs = theVsHS;
 		payload->rho = therhoHS;
 
 		return 0;
-
-
 }
 
 
@@ -911,63 +859,11 @@ int
 layer_Correctprop( double east_m, double north_m, double depth_m, cvmpayload_t* payload )
 {
 
-	double Pelev, ratio, z0, z1, z2, H, Del1, Del2, Del3_FL, Del3_SL;
-
-	Pelev = point_elevation( north_m, east_m );
-	H     = theHR * theLy;
-	Del1  = theFLR * H;
-	Del2  = theSLR * H;
-
-
-	Del3_FL  = theFLRaiR  * H;
-	Del3_SL  = theSLRaiR  * H;
-
-	/* compute limits to layers   */
-	/* external relief  */
-	z0 = Pelev;
-
-	/* first layer  */
-	ratio = ( Del1 + H + Del3_FL ) / H ;
-	z1 = thebase_zcoord * ( 1 - ratio ) + ratio * Pelev + Del1;
-
-	/* second layer  */
-	ratio = ( Del2 + H + Del3_SL ) / H ;
-	z2 = thebase_zcoord * ( 1 - ratio ) + ratio * Pelev + Del2;
-
-
-	/* air */
-	if ( ( depth_m < z0  ) ) {
-		return -1;
-	}
-
-	/* Point in first layer */
-	if ( ( depth_m >= z0  ) && ( depth_m < z1 ) ) {
-
-		payload->Vp = theVpHS * theVs1R;
-		payload->Vs = theVsHS * theVs1R;
-		payload->rho = therhoHS;
-
-		return 0;
-	}
-
-	/* Point in second layer */
-	if ( ( ( depth_m >= z0  ) && ( depth_m > z1 ) && ( depth_m < z2 ) ) ||
-		 ( ( depth_m >= z0  ) && ( z0 > z1 ) && ( depth_m < z2 ) )	) {
-
-		payload->Vp = theVpHS * theVs2R;
-		payload->Vs = theVsHS * theVs2R;
-		payload->rho = therhoHS;
-
-		return 0;
-	}
-
 		payload->Vp = theVpHS;
 		payload->Vs = theVsHS;
 		payload->rho = therhoHS;
 
 		return 0;
-
-
 }
 
 
@@ -1285,8 +1181,10 @@ void topography_elements_count(int32_t myID, mesh_t *myMesh ) {
 				TetraHVol ( xo, yo, zo, esize, aux_vol );
 				if ( ( aux_vol[0]==0 ) && ( aux_vol[1]==0 ) && ( aux_vol[2]==0 ) && ( aux_vol[3]==0 ) && ( aux_vol[4]==0 ) )  /* small enclosed volume */
 					get_airprops_topo( edata );  /* consider the element as an  air element */
-				else
+				else {
 					count++;
+					edata->Vp = 5000;
+				}
 			} else
 				count++;
 	    }
