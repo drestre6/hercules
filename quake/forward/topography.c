@@ -363,7 +363,7 @@ double point_elevation ( double xo, double yo ) {
 double point_PlaneDist ( double xp, double yp, double zp ) {
 
 
-	double mesh_cz[4], sep=5, x_o, y_o, remi, remj;
+	double mesh_cz[4], sep=0.5, x_o, y_o, remi, remj;
 
 	zp = thebase_zcoord - zp; /* sea level elevation  */
 
@@ -460,8 +460,14 @@ void topo_searchII ( octant_t *leaf, double ticksize, edata_t *edata, int *to_to
 
 	double po=90;
 
-	if ( (xo==500) && (yo==640.625) && (zo==218.75) )
+	if ( (xo==500) && (yo==687.5) && (zo==109.375) )
 		po=90;
+
+	if (zo + esize == thebase_zcoord) { /*air element with bottom side on flat surface */
+		*to_topoSetrec = -1;
+		*to_topoExpand =  1;
+		return;
+	}
 
 	/* check for air element with bottom face on flat topo surface */
 	double cnt = 0;
@@ -1194,7 +1200,6 @@ void topography_elements_count(int32_t myID, mesh_t *myMesh ) {
 					get_airprops_topo( edata );  /* consider the element as an  air element */
 				else {
 					count++;
-					edata->Vp = 5000;
 				}
 			} else
 				count++;
@@ -1332,6 +1337,8 @@ void topo_solver_init(int32_t myID, mesh_t *myMesh) {
         ecp->mu     = mu;
         ecp->rho    = edata->rho;
         ecp->h      = esize;
+
+        //edata->Vp=5000;
 
         /* get Tetrahedra volumes using Shunn and Ham quadrature rule */
         if ( theTopoMethod == VT )
