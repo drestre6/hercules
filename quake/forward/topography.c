@@ -458,11 +458,6 @@ void topo_searchII ( octant_t *leaf, double ticksize, edata_t *edata, int *to_to
 	emin = ( (tick_t)1 << (PIXELLEVEL - theMaxoctlevel) ) * ticksize;
 	double Del = esize / (np - 1);
 
-	double po=90;
-
-	if ( (xo==500) && (yo==687.5) && (zo==109.375) )
-		po=90;
-
 	if (zo + esize == thebase_zcoord) { /*air element with bottom side on flat surface */
 		*to_topoSetrec = -1;
 		*to_topoExpand =  1;
@@ -666,6 +661,9 @@ void TetraHVol ( double xo, double yo, double zo, double esize,
             }
 
 		}
+
+		if ( Vpr<=0.01 )
+			Vpr=0.0;
 
 		VolTetr[m] = Vpr; /* percentage of the tetrahedron's volume filled by topography  */
 
@@ -1179,11 +1177,6 @@ void topography_elements_count(int32_t myID, mesh_t *myMesh ) {
 		yo = (node0dat->y)*(myMesh->ticksize);
 		zo = (node0dat->z)*(myMesh->ticksize);
 
-		double po=90;
-
-		if ( (xo==500) && (yo==640.625) && (zo==218.75) )
-			po=90;
-
         /* get element size */
 		esize = edata->edgesize;
 		Vol   = esize * esize *esize;
@@ -1283,6 +1276,19 @@ void topo_solver_init(int32_t myID, mesh_t *myMesh) {
     topography_elements_count   ( myID, myMesh );
     topography_elements_mapping ( myID, myMesh );
 
+    char      filename_topo[256];
+	FILE     *TopoElements;
+
+	// plot topo data
+	sprintf(filename_topo, "topo_elements.%d", myID);
+	TopoElements = hu_fopen ( filename_topo, "wb" );
+
+    fputs( "\n"
+           "# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  \n"
+           "#                                                                                        Tetrahedral partition of topographic elements :                                                                            \n"
+           "# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  \n"
+           "#       ID             xo                   yo                     zo                 esize             tetraVol_1          tetraVol_2          tetraVol_3          tetraVol_4          tetraVol_5              \n"
+           "# ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------  \n", TopoElements );
 
     //fprintf(stdout, "TopoElem=%d, MyID=%d\n", myTopoElementsCount, myID);
 
@@ -1338,14 +1344,15 @@ void topo_solver_init(int32_t myID, mesh_t *myMesh) {
         ecp->rho    = edata->rho;
         ecp->h      = esize;
 
-        //edata->Vp=5000;
-
         /* get Tetrahedra volumes using Shunn and Ham quadrature rule */
         if ( theTopoMethod == VT )
         	TetraHVol ( xo, yo, zo, esize, ecp->tetraVol );
 
+        fprintf( TopoElements, "%11d          %8.4f            %8.4f               %8.4f            %8.4f            %8.4f            %8.4f            %8.4f            %8.4f            %8.4f\n",
+        		 eindex, xo, yo, zo, esize, ecp->tetraVol[0], ecp->tetraVol[1], ecp->tetraVol[2], ecp->tetraVol[3], ecp->tetraVol[4]);
     } /* for all elements */
 
+    hu_fclosep( &TopoElements );
 }
 
 void compute_addforce_topoEffective ( mesh_t     *myMesh,
