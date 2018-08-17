@@ -3531,8 +3531,13 @@ static void solver_init()
         a = zeta * Global.theABase;
         b = zeta * Global.theBBase;
 
-        a = 0.011423973;
-        b = 7.23432E-06;
+        // percentage of critical damping =0.05%
+       a = 0.011423973;
+       b = 7.23432E-06;
+
+        // percentage of critical damping =0.1%
+        //a = 0.022847947;
+        //b = 1.44686E-05;
 
         /* coefficients for term (b * deltaT * Ke_off * (Ut-1 - Ut)) */
         ep->c3 = b * Param.theDeltaT * edata->edgesize * mu / 9;
@@ -4372,7 +4377,7 @@ solver_TopDispl_fix(int step)
         Timer_Start( "Compute TopDispl " );
 
         set_top_displacements( Global.myMesh, Global.mySolver,
-                                         Param.theDeltaT, step );
+                                         Param.theDeltaT, Param.theDomainX, Param.theDomainY, step );
 
         Timer_Stop( "Compute TopDispl " );
     }

@@ -2867,8 +2867,8 @@ void material_update ( nlconstants_t constants, tensor_t e_n, tensor_t e_n1, ten
 
 	}  else if ( theMaterialModel != MOHR_COULOMB ) {
 
-		MatUpd_vMGeneral ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
-		//MatUpd_EXP_Implicit ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
+		//MatUpd_vMGeneral ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
+		MatUpd_EXP_Implicit ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
 
 		return;
 
@@ -4196,13 +4196,74 @@ void base_displacements_fix( mesh_t     *myMesh,
 void set_top_displacements( mesh_t     *myMesh,
                                   mysolver_t *mySolver,
                                   double      dt,
+                                  double      totalDomainLx,
+                                  double      totalDomainLy,
                                   int         step )
 {
+
+	/*
+	int32_t nindex;
+
+	double P = 0.025 , Tt = 50.0, Fz, Fhx, Fhy;
+	double t=(step+1)*dt;
+
+	Fz = P/Tt*t;
+	if (t <= Tt) {
+		Fhx = -Fz/2;
+		Fhy = -Fz/2;
+	} else if (t > Tt && t <= 2*Tt) {
+		Fhx = -P/2;
+		Fhy = -P/2;
+		Fz =  P - P/Tt*(t-Tt);
+	} else if (t> 2*Tt && t < 3*Tt) {
+		Fhx = -P/2 * ( 1 - (t-2*Tt)/Tt );
+		Fhy = -P/2 * ( 1 - (t-2*Tt)/Tt );
+		Fz =   0;
+	} else {
+		Fhx = -P/4 * ( 1 - (t-2*Tt)/Tt );
+		Fhy = -P/2 * ( 1 - (t-2*Tt)/Tt );
+		Fz =   0;
+	}
+
+	for ( nindex = 0; nindex < myMesh->nharbored; nindex++ ) {
+
+		double x_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].x;
+		double y_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].y;
+		double z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].z;
+		fvector_t *tm2Disp;
+		tm2Disp = mySolver->tm2 + nindex;
+
+		if ( z_m == 0.0 ) {
+			tm2Disp->f[2] = Fz;
+			if ( t> 3*Tt) {
+				tm2Disp->f[0] = Fhx;
+				tm2Disp->f[1] = Fhy;
+				return ;
+			}
+
+		}
+
+		if ( x_m == 0.0 )
+			tm2Disp->f[0] = 0;
+
+		if ( y_m == 0.0 )
+			tm2Disp->f[1] = 0;
+
+		if ( x_m == totalDomainLx )
+			tm2Disp->f[0] = Fhx;
+
+		if ( y_m == totalDomainLy )
+			tm2Disp->f[1] = Fhy;
+
+
+	}
+
+	return;*/
 
 
 	    int32_t nindex;
 
-	    double P = 0.025 , Tt = 25.0, F, Fz;
+	    double P = 0.05 , Tt = 25.0, F, Fz;
 	    double t=(step+1)*dt;
 
 	    if (t<=Tt) {
