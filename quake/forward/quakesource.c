@@ -3312,6 +3312,7 @@ static int  compute_myForces_srfh(const char *physicsin){
   int32_t nodesPerCycle, memoryRequiredPerNode, memoryPerCycle;
   int32_t iCycle, iInternal, iNode;
 
+  return 1;
   numStepsNecessary = theNumberOfTimeSteps;
 
   theForceGenerationTime = -MPI_Wtime();

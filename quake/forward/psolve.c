@@ -3532,8 +3532,8 @@ static void solver_init()
         b = zeta * Global.theBBase;
 
         // percentage of critical damping =0.05%
-       a = 0.011423973;
-       b = 7.23432E-06;
+       a = 0.0;
+       b = 0.0;
 
         // percentage of critical damping =0.1%
         //a = 0.022847947;
@@ -4315,9 +4315,9 @@ solver_compute_displacement( mysolver_t* solver, mesh_t* mesh )
                 tm3Disp->f[2] = tm2Disp->f[2];
             }
 
-        	tm2Disp->f[0] = nodalForce.f[0] / np->mass_simple;
+        	tm2Disp->f[0] = nodalForce.f[0] / np->mass_simple * 0.0;
         	tm2Disp->f[1] = nodalForce.f[1] / np->mass_simple;
-        	tm2Disp->f[2] = nodalForce.f[2] / np->mass_simple;
+        	tm2Disp->f[2] = nodalForce.f[2] / np->mass_simple * 0.0;
 
 /*        	tm2Disp->f[0] = nodalForce.f[0] / np->mass_simple;
         	tm2Disp->f[1] = nodalForce.f[1] / np->mass_simple;
@@ -4580,7 +4580,7 @@ static void solver_run()
         solver_compute_displacement( Global.mySolver, Global.myMesh );
         solver_geostatic_fix( step );
         solver_baseDispl_fix( step );
-        //solver_UyDispl_fix  ( step );
+        solver_UyDispl_fix  ( step );
         solver_TopDispl_fix ( step );
         solver_load_fixedbase_displacements( Global.mySolver, step );
         Timer_Stop( "Compute Physics" );

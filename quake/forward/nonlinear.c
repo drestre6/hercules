@@ -1830,9 +1830,9 @@ void MatUpd_EXP_Implicit ( nlconstants_t el_cnt, double *kappa,
 	tensor_t De        = subtrac_tensors ( e_n, e_n1 );
 	double   De_vol    = tensor_I1 ( De );
 	tensor_t De_dev    = tensor_deviator( De, tensor_octahedral ( De_vol ) );
-	//tensor_t alpha_n   = scaled_tensor( *sigma_ref, kappa_n/(1.0+kappa_n));
-	//tensor_t Salpha_n  = subtrac_tensors( Sdev_n1, alpha_n );
-	//double   lo_unlo2  = ddot_tensors(Salpha_n,De_dev) / sqrt( ddot_tensors(Salpha_n,Salpha_n)  );
+	tensor_t alpha_n   = scaled_tensor( *sigma_ref, kappa_n/(1.0+kappa_n));
+	tensor_t Salpha_n  = subtrac_tensors( Sdev_n1, alpha_n );
+	double   lo_unlo2  = ddot_tensors(Salpha_n,De_dev) / sqrt( ddot_tensors(Salpha_n,Salpha_n)  );
 
 	Den1 = ddot_tensors(Sdev_n1, subtrac_tensors (Sdev_n1 , *sigma_ref));
 	Den2 = kappa_n * ( ddot_tensors(subtrac_tensors (Sdev_n1 , *sigma_ref), subtrac_tensors (Sdev_n1 , *sigma_ref)) );
@@ -1840,7 +1840,9 @@ void MatUpd_EXP_Implicit ( nlconstants_t el_cnt, double *kappa,
 
 	load_unload = -ddot_tensors(Num,De_dev) / (Den1 + Den2);
 
-	if ( load_unload > 0 ) {
+	double myzero = 1.0E-5  * sqrt(ddot_tensors(De_dev,De_dev));
+
+	if ( load_unload > 0.0 ) {
 	    *sigma_ref = copy_tensor( Sdev_n1 );
 
 	    /*  -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=    */
@@ -2867,8 +2869,8 @@ void material_update ( nlconstants_t constants, tensor_t e_n, tensor_t e_n1, ten
 
 	}  else if ( theMaterialModel != MOHR_COULOMB ) {
 
-		//MatUpd_vMGeneral ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
-		MatUpd_EXP_Implicit ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
+		MatUpd_vMGeneral ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
+		//MatUpd_EXP_Implicit ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
 
 		return;
 
@@ -4259,13 +4261,54 @@ void set_top_displacements( mesh_t     *myMesh,
 	}
 
 	return;*/
+	double vmax= 4.0 * 1.25 * 0.25/100;
+
+    int32_t nindex;
+
+    double P = 0.015 , Tt = 50.0, F, Fz;
+    double t=(step+1)*dt;
+
+    if (t<=Tt) {
+        F = 2.5 * vmax/Tt*t;
+
+    } else if ( t > Tt && t <= 2.0*Tt ) {
+    	F = ( 2.5 - 2.25/Tt * (t -Tt) ) * vmax;
+
+    } else if ( t > 2*Tt && t <= 3.0*Tt ) {
+    	F = ( 0.25 + 0.75/Tt * (t - 2*Tt) ) * vmax;
+
+    } else if ( t > 3*Tt && t <= 4.0*Tt ) {
+    	F = ( 1.0 - 0.75/Tt * (t - 3*Tt) ) * vmax;
+
+    } else if ( t > 4*Tt && t <= 5.0*Tt ) {
+    	F = ( 0.25 - 2.75/Tt * (t - 4*Tt) ) * vmax;
 
 
-	    int32_t nindex;
+    } else if ( t > 5*Tt && t <= 6.0*Tt ) {
+    	F = ( -2.5 + 2.45/Tt * (t - 5*Tt) ) * vmax;
 
-	    double P = 0.05 , Tt = 25.0, F, Fz;
-	    double t=(step+1)*dt;
+    } else if ( t > 6*Tt && t <= 7.0*Tt ) {
+    	F = ( -0.05 - 0.30/Tt * (t - 6*Tt) ) * vmax;
 
+    } else if ( t > 7*Tt && t <= 8.0*Tt ) {
+    	F = ( -0.35 + 0.30/Tt * (t - 7*Tt) ) * vmax;
+
+    } else {
+    	F = ( -0.05 + 2.55/Tt * (t - 8*Tt) ) * vmax;
+    }
+
+
+	/* r0 = linspace(0,2.5*vmax,Ndiv);
+	r1 = linspace(2.5*vmax,0.25*vmax,Ndiv);
+	r2 = linspace(0.25*vmax,1.0*vmax,Ndiv);
+	r3 = linspace(1.0*vmax,0.25*vmax,Ndiv);
+	r4 = linspace(0.25*vmax,-2.5*vmax,Ndiv);
+	r5 = linspace(-2.5*vmax,-0.05*vmax,Ndiv);
+	r6 = linspace(-0.05*vmax,-0.35*vmax,Ndiv);
+	r7 = linspace(-0.35*vmax,-0.05*vmax,Ndiv);
+	r8 = linspace(-0.05*vmax,2.5*vmax,Ndiv); */
+
+/*
 	    if (t<=Tt) {
 	        F = P/Tt*t;
 	    }
@@ -4288,6 +4331,8 @@ void set_top_displacements( mesh_t     *myMesh,
 	        Fz = P;
 	    }
 
+*/
+
 	    for ( nindex = 0; nindex < myMesh->nharbored; nindex++ ) {
 
 	        double z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].z;
@@ -4295,9 +4340,9 @@ void set_top_displacements( mesh_t     *myMesh,
 	       if ( z_m == 0.0) {
 	        fvector_t *tm2Disp;
 	        tm2Disp = mySolver->tm2 + nindex;
-	        tm2Disp->f[2] = F;
+	        tm2Disp->f[2] = 0;
 	        tm2Disp->f[1] = F;
-	        tm2Disp->f[0] = F;
+	        tm2Disp->f[0] = 0;
 	       }
 	   }
 
@@ -4540,7 +4585,9 @@ void compute_addforce_nl (mesh_t     *myMesh,
 
         memset( localForceDamp, 0, 8 * sizeof(fvector_t) );
 
-        double b_over_dt = ep->c3 / ep->c1;
+        // double b_over_dt = ep->c3 / ep->c1;
+        // b_over_dt = \xi / (f \pi Delta_t)
+        double b_over_dt = (1.5/100) / ( 10 * PI * sqrt(theDeltaTSquared) ); // 1.5% at 10Hz
 
         for (i = 0; i < 8; i++) {
             int32_t    lnid = elemp->lnid[i];
@@ -4715,7 +4762,7 @@ void compute_nonlinear_state ( mesh_t     *myMesh,
 				double ErrBA=0;
 
 				double po=90;
-				if (i==4 && eindex == 9 && ( step == 95898 ) ) {
+				if (i==0 && eindex == 0 && ( step == 7 || step == 6 || step == 5 ) ) {
 					po=89;
 				}
 
