@@ -1420,7 +1420,10 @@ setrec( octant_t* leaf, double ticksize, void* data )
                     z_m -= get_surface_shift();
 		}
 
-		// Reset Shear Velocities. Doriam for elliptical basin
+		double Ldom=128.00/2.0;
+		res = cvm_query( Global.theCVMEp, Ldom, Ldom, 1, &g_props );
+
+/*		// Reset Shear Velocities. Doriam for elliptical basin
 		double a, b, c, d, Ldom=4096.00;
 		if (z_m >= 128)
 			res = cvm_query( Global.theCVMEp, Ldom, Ldom, 500, &g_props );
@@ -1451,7 +1454,7 @@ setrec( octant_t* leaf, double ticksize, void* data )
 					res=0.0;
 				}
 			}
-		}
+		}*/
 
 
 /*		 Reset Shear Velocities. Doriam for cubic basin
@@ -7552,10 +7555,10 @@ mesh_correct_properties( etree_t* cvm )
 
             		}
 
-                    //res = cvm_query( Global.theCVMEp, east_m, north_m,
-                      //               depth_m, &g_props );
+                    res = cvm_query( Global.theCVMEp, east_m, north_m,
+                                     depth_m, &g_props );
 
-            		// Reset Shear Velocities. Doriam for elliptical basin
+/*            		// Reset Shear Velocities. Doriam for elliptical basin
             		double a, b, c, r2, r_ell2, Ldom=4096.00;
 
             		if (depth_m >= 128)
@@ -7587,7 +7590,7 @@ mesh_correct_properties( etree_t* cvm )
             					res=0.0;
             				}
             			}
-            		}
+            		}*/
 
 
 
@@ -7613,11 +7616,11 @@ mesh_correct_properties( etree_t* cvm )
 
 
 
-                    if (res != 0) {
+                   /* if (res != 0) {
                         fprintf(stderr, "Cannot find the query point: east = %lf, north = %lf, depth = %lf, rsqr=%lf, r_ell=%lf  \n",
                         		east_m, north_m, depth_m, r2, r_ell2);
                         exit(1);
-                    }
+                    } */
 
         			vp  += g_props.Vp;
         			vs  += g_props.Vs;
