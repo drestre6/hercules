@@ -31,6 +31,7 @@
 #include "psolve.h"
 #include "quake_util.h"
 #include "util.h"
+#include "stiffness.h"
 
 #define  QC  qc = 0.577350269189 /* sqrt(3.0)/3.0; */
 
@@ -75,6 +76,8 @@ static double                theBackboneErrorTol     = 1E-05;
 static double                theGeostaticCushionT = 0;
 static int                   theGeostaticFinalStep;
 static int                   theNoSubsteps=1000;
+static double                theStiffDamp   = 0.0;
+static double                theStiffDampFreq = 10.0;
 static int32_t              *myStationsElementIndices;
 //static nlstation_t          *myNonlinStations;
 static int32_t              *myNonlinStationsMapping;
@@ -302,7 +305,7 @@ void nonlinear_init( int32_t     myID,
                      double      theDeltaT,
                      double      theEndT )
 {
-    double  double_message[4];
+    double  double_message[6];
     int     int_message[8];
 
     /* Capturing data from file --- only done by PE0 */
@@ -320,6 +323,8 @@ void nonlinear_init( int32_t     myID,
     double_message[1] = theGeostaticCushionT;
     double_message[2] = theErrorTol;
     double_message[3] = theBackboneErrorTol;
+    double_message[4] = theStiffDamp;
+    double_message[5] = theStiffDampFreq;
 
     int_message[0] = (int)theMaterialModel;
     int_message[1] = thePropertiesCount;
@@ -330,13 +335,15 @@ void nonlinear_init( int32_t     myID,
     int_message[6] = (int)theTensionCutoff;
     int_message[7] = (int)theNoSubsteps;
 
-    MPI_Bcast(double_message, 4, MPI_DOUBLE, 0, comm_solver);
+    MPI_Bcast(double_message, 6, MPI_DOUBLE, 0, comm_solver);
     MPI_Bcast(int_message,    8, MPI_INT,    0, comm_solver);
 
     theGeostaticLoadingT  = double_message[0];
     theGeostaticCushionT  = double_message[1];
     theErrorTol           = double_message[2];
     theBackboneErrorTol   = double_message[3];
+    theStiffDamp          = double_message[4];
+    theStiffDampFreq      = double_message[5];
 
     theMaterialModel      = int_message[0];
     thePropertiesCount    = int_message[1];
@@ -398,7 +405,7 @@ int32_t nonlinear_initparameters ( const char *parametersin,
     int32_t  properties_count, no_substeps;
     int      row;
     double   geostatic_loading_t, geostatic_cushion_t, errorTol, backbone_errorTol,
-            *auxiliar;
+            *auxiliar, stff_dmp, stff_dmp_freq;
     char     material_model[64],
              plasticity_type[64], approx_geostatic_state[64], tension_cutoff[64];
 
@@ -424,6 +431,8 @@ int32_t nonlinear_initparameters ( const char *parametersin,
          (parsetext(fp, "material_plasticity_type",     's', &plasticity_type        ) != 0) ||
          (parsetext(fp, "material_properties_count",    'i', &properties_count       ) != 0) ||
          (parsetext(fp, "no_substeps",                  'i', &no_substeps            ) != 0) ||
+         (parsetext(fp, "stiff_damp",                   'd', &stff_dmp               ) != 0) ||
+         (parsetext(fp, "freq_stiff_damp",              'd', &stff_dmp_freq          ) != 0) ||
          (parsetext(fp, "tension_cutoff",               's', &tension_cutoff         ) != 0) )
     {
         fprintf(stderr, "Error parsing nonlinear parameters from %s\n", parametersin);
@@ -537,6 +546,8 @@ int32_t nonlinear_initparameters ( const char *parametersin,
     theApproxGeoState     = approxgeostatic;
     theTensionCutoff      = tensioncutoff;
     theNoSubsteps         = no_substeps;
+    theStiffDamp          = stff_dmp;
+    theStiffDampFreq      = stff_dmp_freq;
 
     auxiliar             = (double*)malloc( sizeof(double) * thePropertiesCount * 16 );
     theVsLimits          = (double*)malloc( sizeof(double) * thePropertiesCount );
@@ -1844,8 +1855,8 @@ void MatUpd_EXP_Implicit ( nlconstants_t el_cnt, double *kappa,
 
 		if ( isnan( tensor_J2(DSdev) ) || isinf( tensor_J2(DSdev) ) ) {
 			fprintf(stdout," NAN at unloading: %f.  \n",tensor_J2(DSdev));
-	        MPI_Abort(MPI_COMM_WORLD, ERROR);
-	        exit(1);
+	        //MPI_Abort(MPI_COMM_WORLD, ERROR);
+	        //exit(1);
 		}
 
 		*sigma          = add_tensors (  add_tensors( sigma_n, isotropic_tensor(K * De_vol) ),  DSdev  );
@@ -2389,7 +2400,7 @@ double get_kappa( nlconstants_t el_cnt, tensor_t Sdev, tensor_t Sref, double kn 
 double Pegasus(double beta, nlconstants_t el_cnt) {
 	// (1973) King, R. An Improved Pegasus method for root finding
 
-	double k0 = 0.05, k1 = 0.10, k2,  f0, f1, f2,  G=el_cnt.mu, tmp;
+	double k0 = 0.005, k1 = 0.010, k2,  f0, f1, f2,  G=el_cnt.mu, tmp;
 	int cnt1=1, cnt2=1, cntMax = 500;
 
 	f0 = ( 1.0 + k0 - beta )  - 3.0 * beta * G / getHardening(el_cnt, k0);
@@ -2407,8 +2418,8 @@ double Pegasus(double beta, nlconstants_t el_cnt) {
 
 	if (cnt1 == cntMax) {
 		fprintf(stdout,"Cannot obtain initial range for kappa at unloading: k0=%f, k1=%f. \n", k0, k1 );
-		MPI_Abort(MPI_COMM_WORLD, ERROR);
-		exit(1);
+		//MPI_Abort(MPI_COMM_WORLD, ERROR);
+		//exit(1);
 	}
 
 	cnt1=1;
@@ -4098,6 +4109,10 @@ void compute_addforce_nl (mesh_t     *myMesh,
     int32_t   nl_eindex;
     fvector_t localForce[8];
 
+
+    fvector_t localForceDamp[8];
+    fvector_t curDisp[8];
+
     /* Loop on the number of elements */
     for (nl_eindex = 0; nl_eindex < myNonlinElementsCount; nl_eindex++) {
 
@@ -4105,6 +4120,8 @@ void compute_addforce_nl (mesh_t     *myMesh,
         edata_t *edata;
         double   h, h3, WiJi;
         double   mu, lambda;
+
+        e_t*    ep;
 
         eindex = myNonlinElementsMapping[nl_eindex];
 
@@ -4114,6 +4131,7 @@ void compute_addforce_nl (mesh_t     *myMesh,
          * This is what gives me the connectivity to nodes */
         elemp = &myMesh->elemTable[eindex];
         edata = (edata_t *)elemp->data;
+        ep    = &mySolver->eTable[nl_eindex] ;
 
         h    = (double)edata->edgesize;
         h3   = h * h * h;
@@ -4124,23 +4142,7 @@ void compute_addforce_nl (mesh_t     *myMesh,
         mu     = ec.mu;
         lambda = ec.lambda;
 
-//        if ( theMaterialModel == LINEAR ) {
-
             stresses = myNonlinSolver->stresses[nl_eindex];
-
-//        } else {
-//
-//            qptensors_t tstrains, pstrains, estrains;
-//
-//            tstrains = myNonlinSolver->strains   [nl_eindex];
-//            pstrains = myNonlinSolver->pstrains1[nl_eindex];
-//
-//            /* compute total strain - plastic strain */
-//            estrains = subtrac_qptensors(tstrains, pstrains);
-//
-//            /* compute the corresponding stress */
-//            stresses = compute_qp_stresses(estrains, mu, lambda);
-//        }
 
         /* Clean memory for the local force vector */
         memset(localForce, 0, 8 * sizeof(fvector_t));
@@ -4196,15 +4198,56 @@ void compute_addforce_nl (mesh_t     *myMesh,
             nodalForce->f[1] -= localForce[i].f[1] * theDeltaTSquared;
             nodalForce->f[2] -= localForce[i].f[2] * theDeltaTSquared;
 
-        	if (  ( ( nodalForce->f[0] >=0 ) || ( nodalForce->f[0] < 0 ) ) &&
-        		  ( ( nodalForce->f[1] >=0 ) || ( nodalForce->f[1] < 0 ) ) &&
-        		  ( ( nodalForce->f[2] >=0 ) || ( nodalForce->f[2] < 0 ) ) ) {
-        	} else {
+        } /* element nodes */
 
+        /* =-=-==-=-=-=-=-=-=-=-=-=-=-=-= */
+        /* =-=-=-=- Add damping -=-=-=-=- */
+        /* =-=-==-=-=-=-=-=-=-=-=-=-=-=-= */
+
+        memset( localForceDamp, 0, 8 * sizeof(fvector_t) );
+
+        //double b_over_dt = ep->c3 / ep->c1;
+        double b_over_dt = theStiffDamp / ( theStiffDampFreq * PI * sqrt(theDeltaTSquared) ); // Added stiffness damping to improve stability
+
+        for (i = 0; i < 8; i++) {
+            int32_t    lnid = elemp->lnid[i];
+            fvector_t* tm1Disp = mySolver->tm1 + lnid;
+   	        fvector_t* tm2Disp = mySolver->tm2 + lnid;
+
+            curDisp[i].f[0] = ( tm1Disp->f[0] - tm2Disp->f[0] ) * b_over_dt;
+            curDisp[i].f[1] = ( tm1Disp->f[1] - tm2Disp->f[1] ) * b_over_dt;
+            curDisp[i].f[2] = ( tm1Disp->f[2] - tm2Disp->f[2] ) * b_over_dt;
+        }
+
+        /* Coefficients for new stiffness matrix calculation */
+        if (vector_is_zero( curDisp ) != 0) {
+
+            double first_coeff  = -0.5625 * (ep->c2 + 2 * ep->c1);
+            double second_coeff = -0.5625 * (ep->c2);
+            double third_coeff  = -0.5625 * (ep->c1);
+
+            double atu[24];
+            double firstVec[24];
+
+            aTransposeU( curDisp, atu );
+            firstVector( atu, firstVec, first_coeff, second_coeff, third_coeff );
+            au( localForceDamp, firstVec );
         	}
 
+        for (i = 0; i < 8; i++) {
 
-        } /* element nodes */
+            int32_t lnid          = elemp->lnid[i];
+            fvector_t* nodalForce = mySolver->force + lnid;
+
+            nodalForce->f[0] += localForceDamp[i].f[0];
+            nodalForce->f[1] += localForceDamp[i].f[1];
+            nodalForce->f[2] += localForceDamp[i].f[2];
+
+        }
+
+        /* =-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+        /* =-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+        /* =-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
 
     } /* all elements */
 
@@ -4340,7 +4383,7 @@ void compute_nonlinear_state ( mesh_t     *myMesh,
 				double ErrBA=0;
 
 				double po=90;
-				if (i==0 && eindex == 411711 && ( step == 200 ) ) {
+				if (i==3 && eindex == 708453 && ( step == 23 ) ) {
 					po=89;
 				}
 
