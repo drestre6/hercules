@@ -1400,11 +1400,21 @@ setrec( octant_t* leaf, double ticksize, void* data )
                     z_m -= get_surface_shift();
 		}
 
-		res = cvm_query( Global.theCVMEp, y_m, x_m, z_m, &g_props );
+		double output[3];
+		material_property_relative_V3( Param.theRegionLong + y_m, Param.theRegionLat + x_m, -z_m, output);
+
+        //if ( output[0] < 0.0 || output[1] < 0.0  || output[2] < 0.0   ) {
+        //fprintf(stdout,"Done Setrec at xm =%f, ym=%f, zm=%f with Vp =%f, Vs=%f, rho=%f \n", Param.theRegionLong + y_m,  Param.theRegionLat + x_m, -z_m , output[1], output[0], output[2] );
+
+		g_props.Vs =  output[0];
+		g_props.Vp =  output[1];
+		g_props.rho = output[2];
+
+		/* res = cvm_query( Global.theCVMEp, y_m, x_m, z_m, &g_props );
 
 		if (res != 0) {
 		    continue;
-		}
+		} */
 
 		if ( g_props.Vs < g_props_min.Vs ) {
 		    /* assign minimum value of vs to produce elements
@@ -7455,14 +7465,22 @@ mesh_correct_properties( etree_t* cvm )
 
             		}
 
-                    res = cvm_query( Global.theCVMEp, east_m, north_m,
-                                     depth_m, &g_props );
+            		double output[3];
+            		material_property_relative_V3( Param.theRegionLong + east_m, Param.theRegionLat + north_m, -depth_m, output);
 
+                   // res = cvm_query( Global.theCVMEp, east_m, north_m,
+                   //                  depth_m, &g_props );
+
+            		g_props.Vs =  output[0];
+            		g_props.Vp =  output[1];
+            		g_props.rho = output[2];
+
+            		/*
                     if (res != 0) {
                         fprintf(stderr, "Cannot find the query point: east = %lf, north = %lf, depth = %lf \n",
                         		east_m, north_m, depth_m);
                         exit(1);
-                    }
+                    } */
 
         			vp  += g_props.Vp;
         			vs  += g_props.Vs;
@@ -7470,7 +7488,7 @@ mesh_correct_properties( etree_t* cvm )
         			++cnt;
 
         			// get geostatic stress as 1d column
-        			double nlayers=10, depth_o = depth_m/nlayers, depth_k;
+        			/* double nlayers=10, depth_o = depth_m/nlayers, depth_k;
         			if (iNorth == 1 && iEast == 1 && iDepth ==1 ) {
 
         				for (k = 0; k < nlayers; k++) {
@@ -7482,7 +7500,7 @@ mesh_correct_properties( etree_t* cvm )
         				}
 
         				edata->sigma_0 = s_0;
-        			}
+        			} */
                 }
             }
         }
@@ -7630,6 +7648,9 @@ mesh_correct_properties( etree_t* cvm )
         		}
         	}
         }
+
+        //fprintf(stdout,"Done. eindex=%d, Vp=%f, Vs=%f, rho=%f \n", eindex, edata->Vp, edata->Vs, edata->rho);
+
     }
 }
 
