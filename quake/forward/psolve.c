@@ -58,6 +58,7 @@
 #include "drm.h"
 #include "meshformatlab.h"
 #include "topography.h"
+#include "Istanbul_CVM.h"
 
 /* ONLY GLOBAL VARIABLES ALLOWED OUTSIDE OF PARAM. and GLOBAL. IN ALL OF PSOLVE!! */
 MPI_Comm comm_solver;
