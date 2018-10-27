@@ -127662,22 +127662,13 @@ void material_property_relative_V444S(double x_input, double y_input, double z_i
 */
 {
 	int i;
-	//	int j;
 	int k;
-	//	int l;
-
-
-	//char SoilFileName[500];
 
 	double vs_layer, rho_layer, depth_layer;
 
 	double ZCOORD, LAYERDATA, RHODATA, VSDATA, NODEXY, NLAYER;
 	int    ELEMENT_NEIGHBOR, TRIANGLE;
-
-	//	double Soil_Property[5];
 	double Soil_depth;
-	//	double Soil_Data[3];
-
 
 
 	double xyi[2 * 1];
@@ -127688,25 +127679,16 @@ void material_property_relative_V444S(double x_input, double y_input, double z_i
 	double zd_vp[2912];
 	double zd_rho[2912];
 
-
-	//	int element_order = 3;
 	int ni = 1;
 
 	int row1;
 
 	double *zi_elevation, *zi_vs, *zi_vp, *zi_rho;
-	//double *output;
-
-	//output = (double *)malloc(2 * sizeof(double));
-
-
 
 	int node_num = 2912;
 	int element_num = 5762;
 
-	//double *pwl_interp_2d_scattered_value ( int nd, double xyd[], double zd[], int t_num, int t[], int t_neighbor[], int ni, double xyi[] );
-
-	zi_elevation = pwl_interp_2d_scattered_value(node_num, node_xy, Zcoord[0], element_num,
+	zi_elevation = pwl_interp_2d_scattered_value(node_num, node_xy, Zcoord, element_num,
 			triangle, element_neighbor, ni, xyi);
 	z_input = z_input + *zi_elevation;
 
@@ -127750,7 +127732,7 @@ void material_property_relative_V444S(double x_input, double y_input, double z_i
 			zd_rho[i] = rho_layer;
 
 		}
-		//printf("%d %d\n", row1,n_Layer[i][0]);
+
 		row1 = row1 + n_Layer[i][0];
 
 	}
@@ -127802,14 +127784,6 @@ void material_property_relative_V444S_nointerp(double x_input, double y_input, d
 
 	Compute the Vs, Vp and density.
 
-  Discussion:
-
-	Please modify the paths for the data in line
-	85, 142 and 146.
-
-  Modified:
-
-	October 11 2018
 
   Author:
 
@@ -127864,7 +127838,6 @@ void material_property_relative_V444S_nointerp(double x_input, double y_input, d
 			nearest_dot_ID = i;
 		}
 	}
-
 
 	row1 = 0;
 	Soil_depth = 0.0;

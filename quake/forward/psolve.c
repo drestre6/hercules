@@ -1402,6 +1402,7 @@ setrec( octant_t* leaf, double ticksize, void* data )
 		}
 
 		double output[3];
+		//material_property_relative_V444S_nointerp( Param.theRegionLong + y_m, Param.theRegionLat + x_m, -z_m, output);
 		material_property_relative_V444S( Param.theRegionLong + y_m, Param.theRegionLat + x_m, -z_m, output);
 
         //if ( output[0] < 0.0 || output[1] < 0.0  || output[2] < 0.0   ) {
@@ -7467,6 +7468,7 @@ mesh_correct_properties( etree_t* cvm )
             		}
 
             		double output[3];
+            		//material_property_relative_V444S_nointerp( Param.theRegionLong + east_m, Param.theRegionLat + north_m, -depth_m, output);
             		material_property_relative_V444S( Param.theRegionLong + east_m, Param.theRegionLat + north_m, -depth_m, output);
 
                    // res = cvm_query( Global.theCVMEp, east_m, north_m,
