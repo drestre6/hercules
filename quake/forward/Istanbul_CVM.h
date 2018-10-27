@@ -23,8 +23,7 @@ int lrline ( double xu, double yu, double xv1, double yv1, double xv2,
   double yv2, double dv );
 int perm_check2 ( int n, int p[], int base );
 void perm_inverse ( int n, int p[] );
-double *pwl_interp_2d_scattered_value ( int nd, double xyd[], double zd[],
-  int t_num, int t[], int t_neighbor[], int ni, double xyi[] );
+double *pwl_interp_2d_scattered_value ( int nd, double xyd[], double zd[], int t_num, int t[], int t_neighbor[], int ni, double xyi[] );
 int r8tris2 ( int node_num, double node_xy[], int *triangle_num,
   int triangle_node[], int triangle_neighbor[] );
 int swapec ( int i, int *top, int *btri, int *bedg, int node_num,
@@ -736,6 +735,9 @@ int s_len_trim ( char *s );
 void sort_heap_external ( int n, int *indx, int *i, int *j, int isgn );
 void timestamp ( );
 // ===================================================================
+
+
+void material_property_relative_V444S(double x_input, double y_input, double z_input, double output[3] ) ;
 
 
 #endif /* ISTANBUL_CVM_H_ */
