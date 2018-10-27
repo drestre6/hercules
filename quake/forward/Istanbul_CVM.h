@@ -738,6 +738,7 @@ void timestamp ( );
 
 
 void material_property_relative_V444S(double x_input, double y_input, double z_input, double output[3] ) ;
+void material_property_relative_V444S_nointerp(double x_input, double y_input, double z_input, double output[3] ) ;
 
 
 #endif /* ISTANBUL_CVM_H_ */

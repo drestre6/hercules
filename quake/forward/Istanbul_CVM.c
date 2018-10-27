@@ -127706,7 +127706,7 @@ void material_property_relative_V444S(double x_input, double y_input, double z_i
 
 	//double *pwl_interp_2d_scattered_value ( int nd, double xyd[], double zd[], int t_num, int t[], int t_neighbor[], int ni, double xyi[] );
 
-	zi_elevation = pwl_interp_2d_scattered_value(node_num, node_xy, Zcoord, element_num,
+	zi_elevation = pwl_interp_2d_scattered_value(node_num, node_xy, Zcoord[0], element_num,
 			triangle, element_neighbor, ni, xyi);
 	z_input = z_input + *zi_elevation;
 
@@ -127792,9 +127792,116 @@ void material_property_relative_V444S(double x_input, double y_input, double z_i
 }
 
 
+/******************************************************************************/
+
+void material_property_relative_V444S_nointerp(double x_input, double y_input, double z_input, double output[3] )         // function definition
+
+/******************************************************************************/
+/*
+  Purpose:
+
+	Compute the Vs, Vp and density.
+
+  Discussion:
+
+	Please modify the paths for the data in line
+	85, 142 and 146.
+
+  Modified:
+
+	October 11 2018
+
+  Author:
+
+	Wenyang Zhang (zwyll@ucla.edu);
+	Ertugrul Taciroglu (etacir@ucla.edu);
+
+  Parameters:
+
+	Input, double X, Y, Z the coordinates of the
+	integration point.
+
+	Output, double Vs, Vp and density.
+	Vs  = output[0];
+	Vp  = output[1];
+	rho = output[2];
+*/
+{
+	int i;
+	int k;
+
+	double vs_layer, rho_layer, depth_layer;
+
+	double ZCOORD, LAYERDATA, RHODATA, VSDATA, NODEXY, NLAYER;
+	int    ELEMENT_NEIGHBOR, TRIANGLE;
+	int    ni = 1, row1;
+
+	double Soil_depth;
+
+	double xyi[2 * 1];
+	xyi[0] = x_input;
+	xyi[1] = y_input;
+
+	double distance, distance_new;
+	int    nearest_dot_ID;
+
+	double *zi_elevation;
+
+	int node_num    = 2912;
+	int element_num = 5762;
+
+	zi_elevation = pwl_interp_2d_scattered_value(node_num, node_xy, Zcoord, element_num,
+			triangle, element_neighbor, ni, xyi);
+	z_input = z_input + *zi_elevation;
+
+	distance = 1.0e10;
+
+	for (i = 0; i < 2912; i++) {
+		distance_new = sqrt((node_xy[i * 2] - xyi[0])*(node_xy[i * 2] - xyi[0]) + (node_xy[i * 2 + 1] - xyi[1])*(node_xy[i * 2 + 1] - xyi[1]));
+
+		if (distance_new < distance) {
+			distance = distance_new;
+			nearest_dot_ID = i;
+		}
+	}
 
 
-/*******************************************************************************/
+	row1 = 0;
+	Soil_depth = 0.0;
+	for (k = 0; k < n_Layer[nearest_dot_ID][0]; k++)
+	{
+		vs_layer = Vs_Data[row1 + k][0];
+		rho_layer = rho_Data[row1 + k][0];
+		depth_layer = layer_Data[row1 + k][0];
+
+		Soil_depth = Soil_depth + depth_layer;
+
+		if (z_input > Zcoord[nearest_dot_ID][0]) {
+			output[0] = 0;
+			output[1] = 0;
+			output[2] = 0;
+			break;
+		}
+		else {
+			if (z_input > Zcoord[nearest_dot_ID][0] - Soil_depth) {
+				output[0] = vs_layer;
+				output[1] = vs_layer * 1.8;
+				output[2] = rho_layer;
+				break;
+			}
+
+		}
+
+		if ( vs_layer <= 0.0 || rho_layer <= 0.0  ) {
+			vs_layer  = 888.00;
+			rho_layer = 1.56700; }
+
+		output[0] = vs_layer;
+		output[1] = vs_layer * 2.0;
+		output[2] = rho_layer * 1000.0;
+	}
+
+}
 
 
 /******************************************************************************/
