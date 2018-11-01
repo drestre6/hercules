@@ -1105,7 +1105,7 @@ static void  open_cvmdb(void){
     }
 
     /* Check the ranges of the mesh and the scope of the CVM etree */
-    if ((Param.theRegionLat < myctl->region_origin_latitude_deg) ||
+    /* if ((Param.theRegionLat < myctl->region_origin_latitude_deg) ||
         (Param.theRegionLong < myctl->region_origin_longitude_deg) ||
         (Param.theRegionDepth < myctl->region_depth_shallow_m) ||
         (Param.region_depth_deep_m > myctl->region_depth_deep_m) ||
@@ -1118,15 +1118,19 @@ static void  open_cvmdb(void){
         fprintf(stderr, "Mesh area out of the CVM etree\n");
         MPI_Abort(MPI_COMM_WORLD, ERROR );
     	exit( 1 );
-    }
+    } */
 
     /* Compute the coordinates of the origin of the mesh coordinate
        system in the CVM etree domain coordinate system */
-    Global.theXForMeshOrigin = (Param.theRegionLat
+    /* Global.theXForMeshOrigin = (Param.theRegionLat
 				- myctl->region_origin_latitude_deg) * DIST1LAT;
     Global.theYForMeshOrigin = (Param.theRegionLong
 				- myctl->region_origin_longitude_deg) * DIST1LON;
-    Global.theZForMeshOrigin = Param.theRegionDepth - myctl->region_depth_shallow_m;
+    Global.theZForMeshOrigin = Param.theRegionDepth - myctl->region_depth_shallow_m; */
+
+    Global.theXForMeshOrigin = 0.0;
+    Global.theYForMeshOrigin = 0.0;
+    Global.theZForMeshOrigin = 0.0;
 
     /* Free memory used by myctl */
     cvm_freedbctl(myctl);
