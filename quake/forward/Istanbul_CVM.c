@@ -3035,62 +3035,72 @@ void material_property_relative_V6(double x_input, double y_input, double z_inpu
 		triangle, element_neighbor, ni, xyi);
 	z_input = z_input + *zi_elevation;
 
+	if ( z_input > 250  ) {
 
-	row1 = 0;
-
-	for (i = 0; i < 2912; i++)
-	{
-
-		Soil_depth = 0.0;
-		for (k = 0; k < n_Layer[i]; k++)
-		{
-			vs_layer     = Vs_Data[row1+k];
-			rho_layer    = rho_Data[row1+k];
-			depth_layer  = layer_Data[row1+k];
-
-			Soil_depth = Soil_depth + depth_layer;
-
-			if (z_input > Zcoord[i] - Soil_depth)
-			{
-				zd_vs[i] = vs_layer;
-				zd_vp[i] = zd_vs[i] * 1.8;
-				zd_rho[i] = rho_layer;
-				break;
-			}
-
-
-			zd_vs[i] = vs_layer;
-			zd_vp[i] = zd_vs[i] * 2.0;
-			zd_rho[i] = rho_layer;
-
-		}
-		row1 = row1 + n_Layer[i];
-	}
-
-
-	/*
-	  Evaluate the interpolant.
-	*/
-	zi_vs = pwl_interp_2d_scattered_value(node_num, node_xy, zd_vs, element_num,
-		triangle, element_neighbor, ni, xyi);
-	zi_vp = pwl_interp_2d_scattered_value(node_num, node_xy, zd_vp, element_num,
-		triangle, element_neighbor, ni, xyi);
-	zi_rho = pwl_interp_2d_scattered_value(node_num, node_xy, zd_rho, element_num,
-		triangle, element_neighbor, ni, xyi);
-
-	/* safety check. Should not get here */
-	if ( *zi_vs <= 0.0 || *zi_vp <= 0.0 || *zi_rho <= 0.0  ) {
-		//fprintf(stdout,"zero properties found at xm =%f, ym=%f, zm=%f\n", x_input, y_input, z_input);
 		*zi_vs = 1000.00;
 		*zi_vp = 2000.00;
 		*zi_rho = 2.2;
+
+
+	} else {
+
+
+		row1 = 0;
+
+		for (i = 0; i < 2912; i++)
+		{
+
+			Soil_depth = 0.0;
+			for (k = 0; k < n_Layer[i]; k++)
+			{
+				vs_layer     = Vs_Data[row1+k];
+				rho_layer    = rho_Data[row1+k];
+				depth_layer  = layer_Data[row1+k];
+
+				Soil_depth = Soil_depth + depth_layer;
+
+				if (z_input > Zcoord[i] - Soil_depth)
+				{
+					zd_vs[i] = vs_layer;
+					zd_vp[i] = zd_vs[i] * 1.8;
+					zd_rho[i] = rho_layer;
+					break;
+				}
+
+
+				zd_vs[i] = vs_layer;
+				zd_vp[i] = zd_vs[i] * 2.0;
+				zd_rho[i] = rho_layer;
+
+			}
+			row1 = row1 + n_Layer[i];
+		}
+
+
+		/*
+	  Evaluate the interpolant.
+		 */
+		zi_vs = pwl_interp_2d_scattered_value(node_num, node_xy, zd_vs, element_num,
+				triangle, element_neighbor, ni, xyi);
+		zi_vp = pwl_interp_2d_scattered_value(node_num, node_xy, zd_vp, element_num,
+				triangle, element_neighbor, ni, xyi);
+		zi_rho = pwl_interp_2d_scattered_value(node_num, node_xy, zd_rho, element_num,
+				triangle, element_neighbor, ni, xyi);
+
+		/* safety check. Should not get here */
+		if ( *zi_vs <= 0.0 || *zi_vp <= 0.0 || *zi_rho <= 0.0  ) {
+			//fprintf(stdout,"zero properties found at xm =%f, ym=%f, zm=%f\n", x_input, y_input, z_input);
+			*zi_vs = 1000.00;
+			*zi_vp = 2000.00;
+			*zi_rho = 2.2;
+
+		}
 
 	}
 
 	output[0] = *zi_vs;
 	output[1] = *zi_vp;
 	output[2] = *zi_rho*1000;
-
 
 }
 
