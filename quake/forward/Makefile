@@ -49,7 +49,7 @@ endif
 # Object modules 
 #
 PSOLVE_OBJECTS = psolve.o nrutila.o quakesource.o geometrics.o nonlinear.o \
-	commutil.o util.o output.o io_planes.o io_checkpoint.o stiffness.o damping.o quake_util.o timers.o buildings.o meshformatlab.o drm.o topography.o Istanbul_CVM.o
+	commutil.o util.o output.o io_planes.o io_checkpoint.o stiffness.o damping.o quake_util.o timers.o buildings.o meshformatlab.o drm.o topography.o Istanbul_CVM.o drm_halfspace.o
 
 OBJECTS = qmesh.o q4.o single_query.o ${PSOLVE_OBJECTS}
 

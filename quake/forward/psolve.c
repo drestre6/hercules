@@ -59,6 +59,7 @@
 #include "meshformatlab.h"
 #include "topography.h"
 #include "Istanbul_CVM.h"
+#include "drm_halfspace.h"
 
 /* ONLY GLOBAL VARIABLES ALLOWED OUTSIDE OF PARAM. and GLOBAL. IN ALL OF PSOLVE!! */
 MPI_Comm comm_solver;
@@ -231,6 +232,7 @@ static struct Param_t {
     noyesflag_t  includeTopography;
     noyesflag_t  includeNonlinearAnalysis;
     noyesflag_t  useInfQk;
+    noyesflag_t  includeIncidentPlaneWaves;
     int  theTimingBarriersFlag;
     stiffness_type_t   theStiffness;
     int      theStationsPrintRate;
@@ -369,7 +371,7 @@ monitor_print( const char* format, ... )
 static void read_parameters( int argc, char** argv ){
 
 #define LOCAL_INIT_DOUBLE_MESSAGE_LENGTH 18  /* Must adjust this if adding double params */
-#define LOCAL_INIT_INT_MESSAGE_LENGTH 21     /* Must adjust this if adding int params */
+#define LOCAL_INIT_INT_MESSAGE_LENGTH 22     /* Must adjust this if adding int params */
 
     double  double_message[LOCAL_INIT_DOUBLE_MESSAGE_LENGTH];
     int     int_message[LOCAL_INIT_INT_MESSAGE_LENGTH];
@@ -449,6 +451,7 @@ static void read_parameters( int argc, char** argv ){
     int_message[18] = (int)Param.useInfQk;
     int_message[19] = Param.theStepMeshingFactor;
     int_message[20] = (int)Param.includeTopography;
+    int_message[21] = (int)Param.includeIncidentPlaneWaves;
 
     MPI_Bcast(int_message, LOCAL_INIT_INT_MESSAGE_LENGTH, MPI_INT, 0, comm_solver);
 
@@ -473,6 +476,7 @@ static void read_parameters( int argc, char** argv ){
     Param.useInfQk                       = int_message[18];
     Param.theStepMeshingFactor           = int_message[19];
     Param.includeTopography              = int_message[20];
+    Param.includeIncidentPlaneWaves      = int_message[21];
 
     /*Broadcast all string params*/
     MPI_Bcast (Param.parameters_input_file,  256, MPI_CHAR, 0, comm_solver);
@@ -673,7 +677,8 @@ static int32_t parse_parameters( const char* numericalin )
 	      	  mesh_coordinates_for_matlab[64],
     		  implement_drm[64],
     		  use_infinite_qk[64],
-    		  include_topography[64];
+    		  include_topography[64],
+    		  include_incident_planewaves[64];
 
     damping_type_t   typeOfDamping     = -1;
     stiffness_type_t stiffness_method  = -1;
@@ -687,6 +692,7 @@ static int32_t parse_parameters( const char* numericalin )
     noyesflag_t      meshCoordinatesForMatlab  = -1;
     noyesflag_t      implementdrm              = -1;
     noyesflag_t		 haveTopography            = -1;
+    noyesflag_t		 includePlaneWaves         = -1;
 
     /* Obtain the specification of the simulation */
     if ((fp = fopen(physicsin, "r")) == NULL)
@@ -779,6 +785,7 @@ static int32_t parse_parameters( const char* numericalin )
         (parsetext(fp, "mesh_coordinates_for_matlab",    's', &mesh_coordinates_for_matlab ) != 0) ||
         (parsetext(fp, "implement_drm",    				 's', &implement_drm               ) != 0) ||
         (parsetext(fp, "include_topography",    		 's', &include_topography          ) != 0) ||       
+        (parsetext(fp, "include_incident_planewaves",    's', &include_incident_planewaves ) != 0) ||
         (parsetext(fp, "simulation_velocity_profile_freq_hz",'d', &freq_vel                ) != 0) ||
         (parsetext(fp, "use_infinite_qk",                's', &use_infinite_qk             ) != 0) )
     {
@@ -999,6 +1006,16 @@ static int32_t parse_parameters( const char* numericalin )
                 include_topography );
     }
 
+    if ( strcasecmp(include_incident_planewaves, "yes") == 0 ) {
+        includePlaneWaves = YES;
+    } else if ( strcasecmp(include_incident_planewaves, "no") == 0 ) {
+        includePlaneWaves = NO;
+    } else {
+        solver_abort( __FUNCTION_NAME, NULL,
+                "Unknown response for include_incident_planewaves (yes or no): %s\n",
+                include_incident_planewaves );
+    }
+
     /* Init the static global variables */
 
     Param.theRegionLat      = region_origin_latitude_deg;
@@ -1052,6 +1069,8 @@ static int32_t parse_parameters( const char* numericalin )
 
     Param.includeTopography         = haveTopography;
 
+    Param.includeIncidentPlaneWaves = includePlaneWaves;
+
     strcpy( Param.theCheckPointingDirOut, checkpoint_path );
 
     monitor_print("\n\n---------------- Some Input Data ----------------\n\n");
@@ -1068,6 +1087,7 @@ static int32_t parse_parameters( const char* numericalin )
     monitor_print("cvmdb_input_file:                   %s\n", Param.cvmdb_input_file);
     monitor_print("Implement drm:      	               %s\n", implement_drm);
     monitor_print("Include Topography:                 %s\n", include_topography);
+    monitor_print("Include Incident Plane Waves:       %s\n", include_incident_planewaves);
     monitor_print("\n-------------------------------------------------\n\n");
 
     fflush(Param.theMonitorFileFp);
@@ -4167,6 +4187,24 @@ solver_compute_force_nonlinear( mysolver_t *solver,
 
 
 /**
+ * Compute the plane waves contribution to the force.
+ */
+static void
+solver_compute_force_planewaves( mesh_t     *myMesh,
+        mysolver_t *mySolver,
+        double      theDeltaT,
+        int         step,
+        fmatrix_t (*theK1)[8], fmatrix_t (*theK2)[8] )
+{
+    if ( Param.includeIncidentPlaneWaves == YES ) {
+        Timer_Start( "Compute addforces Incident Plane Waves" );
+        compute_addforce_PlaneWaves ( myMesh, mySolver, theDeltaT, step, theK1, theK2);
+        Timer_Stop( "Compute addforces Incident Plane Waves" );
+    }
+}
+
+
+/**
  * Compute the topography contribution to the force.
  * \param deltaT2 Delta t^2 (i.e., squared).
  */
@@ -4479,6 +4517,7 @@ static void solver_run()
         solver_compute_force_damping( Global.mySolver, Global.myMesh, Global.theK1, Global.theK2 );
         solver_compute_force_gravity( Global.mySolver, Global.myMesh, step );
         solver_compute_force_nonlinear( Global.mySolver, Global.myMesh, Param.theDeltaTSquared );
+        solver_compute_force_planewaves( Global.myMesh, Global.mySolver, Param.theDeltaT, step, Global.theK1, Global.theK2 );
 
         Timer_Stop( "Compute Physics" );
 
@@ -7751,6 +7790,18 @@ int main( int argc, char** argv )
         topo_init( Global.myID, Param.parameters_input_file );
     }
 
+    if ( Param.includeIncidentPlaneWaves == YES ){
+
+    	/* compute half-space Vs */
+/*    	cvmpayload_t props;
+    	int res = cvm_query( Global.theCVMEp, Param.theDomainY / 2.0, Param.theDomainX / 2.0, Param.theDomainZ, &props );
+    	double VsHS = props.Vs;*/
+
+    	drm_planewaves_init( Global.myID, Param.parameters_input_file );
+
+    }
+
+
     // INTRODUCE BKT MODEL
     /* Init Quality Factor Table */
     constract_Quality_Factor_Table();
@@ -7840,6 +7891,17 @@ int main( int argc, char** argv )
         nonlinear_stats(Global.myID, Global.theGroupSize);
     }
     
+
+/*     include additional info for topo stations
+    if ( Param.includeTopography == YES  )
+            topo_stats(Global.myID, Global.theGroupSize);*/
+
+
+    if ( Param.includeIncidentPlaneWaves == YES ){
+    	PlaneWaves_solver_init( Global.myID, Global.myMesh, Global.mySolver );
+    }
+
+
     Timer_Start("Source Init");
     source_init(Param.parameters_input_file);
     Timer_Stop("Source Init");
