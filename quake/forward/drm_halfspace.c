@@ -34,7 +34,8 @@
 #include "geometrics.h"
 
 static planewavetype_t	thePlaneWaveType;
-static int32_t	        theDRMBox_halfwidthElements = 0;
+static int32_t	        theDRMBox_halfwidthElements_east_west  = 0;
+static int32_t	        theDRMBox_halfwidthElements_north_south = 0;
 static int32_t	        theDRMBox_DepthElements = 0;
 static double 	        thedrmbox_esize         = 0.0;
 
@@ -53,7 +54,7 @@ static int32_t            myDRM_BottomCount = 0;
 
 void drm_planewaves_init ( int32_t myID, const char *parametersin ) {
 
-    int     int_message[3];
+    int     int_message[4];
     double  double_message[7];
 
     /* Capturing data from file --- only done by PE0 */
@@ -70,8 +71,9 @@ void drm_planewaves_init ( int32_t myID, const char *parametersin ) {
     /* Broadcasting data */
 
     int_message   [0]    = (int)thePlaneWaveType;
-    int_message   [1]    = theDRMBox_halfwidthElements;
+    int_message   [1]    = theDRMBox_halfwidthElements_east_west;
     int_message   [2]    = theDRMBox_DepthElements;
+    int_message   [3]    = theDRMBox_halfwidthElements_north_south;
 
     double_message[0] = theTs;
     double_message[1] = thefc;
@@ -82,11 +84,12 @@ void drm_planewaves_init ( int32_t myID, const char *parametersin ) {
     double_message[6] = thedrmbox_esize;
 
     MPI_Bcast(double_message, 7, MPI_DOUBLE, 0, comm_solver);
-    MPI_Bcast(int_message,    3, MPI_INT,    0, comm_solver);
+    MPI_Bcast(int_message,    4, MPI_INT,    0, comm_solver);
 
-    thePlaneWaveType             = int_message[0];
-    theDRMBox_halfwidthElements  = int_message[1];
-    theDRMBox_DepthElements      = int_message[2];
+    thePlaneWaveType                         = int_message[0];
+    theDRMBox_halfwidthElements_east_west    = int_message[1];
+    theDRMBox_DepthElements                  = int_message[2];
+    theDRMBox_halfwidthElements_north_south  = int_message[3];
 
     theTs               = double_message[0];
     thefc               = double_message[1];
@@ -106,7 +109,7 @@ int32_t
 drm_planewaves_initparameters ( const char *parametersin ) {
     FILE                *fp;
 
-    double              drmbox_halfwidth_elements, drmbox_depth_elements, Ts, fc, Uo, planewave_strike, L_ew, L_ns, drmbox_esize;
+    double              drmbox_halfwidth_elements_eastwest, drmbox_halfwidth_elements_northsouth, drmbox_depth_elements, Ts, fc, Uo, planewave_strike, L_ew, L_ns, drmbox_esize;
     char                type_of_wave[64];
 
     planewavetype_t     planewave;
@@ -123,16 +126,17 @@ drm_planewaves_initparameters ( const char *parametersin ) {
 
 
      /* Parses parametersin to capture drm_planewaves single-value parameters */
-    if ( ( parsetext(fp, "type_of_wave",                     's', &type_of_wave                ) != 0) ||
-         ( parsetext(fp, "DRMBox_Noelements_in_halfwidth",   'd', &drmbox_halfwidth_elements   ) != 0) ||
-         ( parsetext(fp, "DRMBox_Noelements_in_depth",       'd', &drmbox_depth_elements       ) != 0) ||
-         ( parsetext(fp, "DRMBox_element_size_m",            'd', &drmbox_esize                ) != 0) ||
-         ( parsetext(fp, "Ts",                               'd', &Ts                          ) != 0) ||
-         ( parsetext(fp, "region_length_east_m",             'd', &L_ew                        ) != 0) ||
-         ( parsetext(fp, "region_length_north_m",            'd', &L_ns                        ) != 0) ||
-         ( parsetext(fp, "fc",                               'd', &fc                          ) != 0) ||
-         ( parsetext(fp, "Uo",                               'd', &Uo                          ) != 0) ||
-         ( parsetext(fp, "planewave_strike",                 'd', &planewave_strike            ) != 0) )
+    if ( ( parsetext(fp, "type_of_wave",                          's', &type_of_wave                           ) != 0) ||
+         ( parsetext(fp, "DRMBox_NoElems_halfwidth_eastwest",     'd', &drmbox_halfwidth_elements_eastwest     ) != 0) ||
+         ( parsetext(fp, "DRMBox_NoElems_halfwidth_northsouth",   'd', &drmbox_halfwidth_elements_northsouth   ) != 0) ||
+         ( parsetext(fp, "DRMBox_Noelements_in_depth",            'd', &drmbox_depth_elements                  ) != 0) ||
+         ( parsetext(fp, "DRMBox_element_size_m",                 'd', &drmbox_esize                           ) != 0) ||
+         ( parsetext(fp, "Ts",                                    'd', &Ts                                     ) != 0) ||
+         ( parsetext(fp, "region_length_east_m",                  'd', &L_ew                                   ) != 0) ||
+         ( parsetext(fp, "region_length_north_m",                 'd', &L_ns                                   ) != 0) ||
+         ( parsetext(fp, "fc",                                    'd', &fc                                     ) != 0) ||
+         ( parsetext(fp, "Uo",                                    'd', &Uo                                     ) != 0) ||
+         ( parsetext(fp, "planewave_strike",                      'd', &planewave_strike                       ) != 0) )
     {
         fprintf( stderr,
                  "Error parsing planewaves parameters from %s\n",
@@ -152,9 +156,10 @@ drm_planewaves_initparameters ( const char *parametersin ) {
     }
 
     /*  Initialize the static global variables */
-	thePlaneWaveType                 = planewave;
-	theDRMBox_halfwidthElements      = drmbox_halfwidth_elements;
-	theDRMBox_DepthElements          = drmbox_depth_elements;
+	thePlaneWaveType                        = planewave;
+	theDRMBox_halfwidthElements_east_west   = drmbox_halfwidth_elements_eastwest;
+	theDRMBox_halfwidthElements_north_south = drmbox_halfwidth_elements_northsouth;
+	theDRMBox_DepthElements                 = drmbox_depth_elements;
 	theTs                            = Ts;
 	thefc                            = fc;
     theUo                            = Uo;
@@ -171,14 +176,16 @@ drm_planewaves_initparameters ( const char *parametersin ) {
 
 void PlaneWaves_solver_init( int32_t myID, mesh_t *myMesh, mysolver_t *mySolver) {
 
-	int32_t theFaceElem, theBaseElem;
+	int32_t theBaseElem;
 
 	double DRM_D = theDRMBox_DepthElements * thedrmbox_esize;
-	double DRM_B = theDRMBox_halfwidthElements * thedrmbox_esize;
+	double DRM_B = theDRMBox_halfwidthElements_east_west   * thedrmbox_esize;
+	double DRM_L = theDRMBox_halfwidthElements_north_south * thedrmbox_esize;
+
 	double thebase_zcoord = get_thebase_topo();
 
-	theFaceElem = 2 * ( theDRMBox_halfwidthElements + 0 ) * theDRMBox_DepthElements;
-	theBaseElem = 4 * theDRMBox_halfwidthElements * theDRMBox_halfwidthElements;
+	//theFaceElem = 2 * ( theDRMBox_halfwidthElements + 0 ) * theDRMBox_DepthElements;
+	theBaseElem = 4 * theDRMBox_halfwidthElements_east_west * theDRMBox_halfwidthElements_north_south ;
 	theDRMdepth = DRM_D;
 
 	/*  mapping of face1 elements */
@@ -205,8 +212,8 @@ void PlaneWaves_solver_init( int32_t myID, mesh_t *myMesh, mysolver_t *mySolver)
 		yo = (node0dat->y)*(myMesh->ticksize);
 		zo = (node0dat->z)*(myMesh->ticksize);
 
-		if ( ( yo >= ( theYc - DRM_B ) ) &&         /*bottom*/
-				( yo <  ( theYc + DRM_B ) ) &&
+		if ( ( yo >= ( theYc - DRM_L ) ) &&         /*bottom*/
+				( yo <  ( theYc + DRM_L ) ) &&
 				( xo >= ( theXc - DRM_B ) ) &&
 				( xo <  ( theXc + DRM_B ) ) &&
 				( zo ==  DRM_D + thebase_zcoord )          ) {
