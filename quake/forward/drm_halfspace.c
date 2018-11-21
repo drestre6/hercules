@@ -39,6 +39,11 @@ static int32_t	        theDRMBox_halfwidthElements_north_south = 0;
 static int32_t	        theDRMBox_DepthElements = 0;
 static double 	        thedrmbox_esize         = 0.0;
 
+static double             *theUg_NS;
+static double             *theUg_EW;
+
+static int32_t	        the_Ug_NoData = 0;
+
 static double 	        theTs = 0.0;
 static double 	        thefc = 0.0;
 static double           theUo = 0.0;
@@ -54,52 +59,65 @@ static int32_t            myDRM_BottomCount = 0;
 
 void drm_planewaves_init ( int32_t myID, const char *parametersin ) {
 
-    int     int_message[4];
-    double  double_message[7];
+	int     int_message[5];
+	double  double_message[7];
 
-    /* Capturing data from file --- only done by PE0 */
-    if (myID == 0) {
-        if ( drm_planewaves_initparameters( parametersin ) != 0 ) {
-            fprintf(stderr,"Thread %d: drm_planewaves_init: "
-                    "incidentPlaneWaves_initparameters error\n",myID);
-            MPI_Abort(MPI_COMM_WORLD, ERROR);
-            exit(1);
-        }
+	/* Capturing data from file --- only done by PE0 */
+	if (myID == 0) {
+		if ( drm_planewaves_initparameters( parametersin ) != 0 ) {
+			fprintf(stderr,"Thread %d: drm_planewaves_init: "
+					"incidentPlaneWaves_initparameters error\n",myID);
+			MPI_Abort(MPI_COMM_WORLD, ERROR);
+			exit(1);
+		}
 
-    }
+	}
 
-    /* Broadcasting data */
+	/* Broadcasting data */
 
-    int_message   [0]    = (int)thePlaneWaveType;
-    int_message   [1]    = theDRMBox_halfwidthElements_east_west;
-    int_message   [2]    = theDRMBox_DepthElements;
-    int_message   [3]    = theDRMBox_halfwidthElements_north_south;
+	int_message   [0]    = (int)thePlaneWaveType;
+	int_message   [1]    = theDRMBox_halfwidthElements_east_west;
+	int_message   [2]    = theDRMBox_DepthElements;
+	int_message   [3]    = theDRMBox_halfwidthElements_north_south;
+	int_message   [4]    = the_Ug_NoData;
 
-    double_message[0] = theTs;
-    double_message[1] = thefc;
-    double_message[2] = theUo;
-    double_message[3] = theplanewave_strike;
-    double_message[4] = theXc;
-    double_message[5] = theYc;
-    double_message[6] = thedrmbox_esize;
+	double_message[0] = theTs;
+	double_message[1] = thefc;
+	double_message[2] = theUo;
+	double_message[3] = theplanewave_strike;
+	double_message[4] = theXc;
+	double_message[5] = theYc;
+	double_message[6] = thedrmbox_esize;
 
-    MPI_Bcast(double_message, 7, MPI_DOUBLE, 0, comm_solver);
-    MPI_Bcast(int_message,    4, MPI_INT,    0, comm_solver);
+	MPI_Bcast(double_message, 7, MPI_DOUBLE, 0, comm_solver);
+	MPI_Bcast(int_message,    5, MPI_INT,    0, comm_solver);
 
-    thePlaneWaveType                         = int_message[0];
-    theDRMBox_halfwidthElements_east_west    = int_message[1];
-    theDRMBox_DepthElements                  = int_message[2];
-    theDRMBox_halfwidthElements_north_south  = int_message[3];
+	thePlaneWaveType                         = int_message[0];
+	theDRMBox_halfwidthElements_east_west    = int_message[1];
+	theDRMBox_DepthElements                  = int_message[2];
+	theDRMBox_halfwidthElements_north_south  = int_message[3];
+	the_Ug_NoData                            = int_message[4];
 
-    theTs               = double_message[0];
-    thefc               = double_message[1];
-    theUo               = double_message[2];
-    theplanewave_strike = double_message[3];
-    theXc               = double_message[4];
-    theYc               = double_message[5];
-    thedrmbox_esize     = double_message[6];
+	theTs               = double_message[0];
+	thefc               = double_message[1];
+	theUo               = double_message[2];
+	theplanewave_strike = double_message[3];
+	theXc               = double_message[4];
+	theYc               = double_message[5];
+	thedrmbox_esize     = double_message[6];
 
-    return;
+	//    /* allocate table of properties for all other PEs */
+	if (myID != 0) {
+		theUg_EW        = (double*)malloc( sizeof(double) * the_Ug_NoData );
+		theUg_NS        = (double*)malloc( sizeof(double) * the_Ug_NoData );
+	}
+
+	/* Broadcast table of properties */
+	MPI_Bcast(theUg_EW,   the_Ug_NoData, MPI_DOUBLE, 0, comm_solver);
+	MPI_Bcast(theUg_NS,   the_Ug_NoData, MPI_DOUBLE, 0, comm_solver);
+
+
+	return;
 
 }
 
@@ -109,8 +127,12 @@ int32_t
 drm_planewaves_initparameters ( const char *parametersin ) {
     FILE                *fp;
 
-    double              drmbox_halfwidth_elements_eastwest, drmbox_halfwidth_elements_northsouth, drmbox_depth_elements, Ts, fc, Uo, planewave_strike, L_ew, L_ns, drmbox_esize;
-    char                type_of_wave[64];
+    double              drmbox_halfwidth_elements_eastwest, drmbox_halfwidth_elements_northsouth, drmbox_depth_elements, Ts, fc, Uo, planewave_strike, L_ew, L_ns, drmbox_esize, ug_dt;
+    char                type_of_wave[64],  ug_eastwest_file[256], ug_northsouth_file[256];
+
+    int                 no_data_ew, no_data_ns, i_ug=0;
+
+    FILE                *fp_ug_EW, *fp_ug_NS;
 
     planewavetype_t     planewave;
 
@@ -126,17 +148,21 @@ drm_planewaves_initparameters ( const char *parametersin ) {
 
 
      /* Parses parametersin to capture drm_planewaves single-value parameters */
-    if ( ( parsetext(fp, "type_of_wave",                          's', &type_of_wave                           ) != 0) ||
-         ( parsetext(fp, "DRMBox_NoElems_halfwidth_eastwest",     'd', &drmbox_halfwidth_elements_eastwest     ) != 0) ||
-         ( parsetext(fp, "DRMBox_NoElems_halfwidth_northsouth",   'd', &drmbox_halfwidth_elements_northsouth   ) != 0) ||
-         ( parsetext(fp, "DRMBox_Noelements_in_depth",            'd', &drmbox_depth_elements                  ) != 0) ||
-         ( parsetext(fp, "DRMBox_element_size_m",                 'd', &drmbox_esize                           ) != 0) ||
-         ( parsetext(fp, "Ts",                                    'd', &Ts                                     ) != 0) ||
-         ( parsetext(fp, "region_length_east_m",                  'd', &L_ew                                   ) != 0) ||
-         ( parsetext(fp, "region_length_north_m",                 'd', &L_ns                                   ) != 0) ||
-         ( parsetext(fp, "fc",                                    'd', &fc                                     ) != 0) ||
-         ( parsetext(fp, "Uo",                                    'd', &Uo                                     ) != 0) ||
-         ( parsetext(fp, "planewave_strike",                      'd', &planewave_strike                       ) != 0) )
+    if ( ( parsetext(fp, "type_of_wave",                             's', &type_of_wave                           ) != 0) ||
+         ( parsetext(fp, "DRMBox_NoElems_halfwidth_eastwest",        'd', &drmbox_halfwidth_elements_eastwest     ) != 0) ||
+         ( parsetext(fp, "DRMBox_NoElems_halfwidth_northsouth",      'd', &drmbox_halfwidth_elements_northsouth   ) != 0) ||
+         ( parsetext(fp, "DRMBox_Noelements_in_depth",               'd', &drmbox_depth_elements                  ) != 0) ||
+         ( parsetext(fp, "DRMBox_element_size_m",                    'd', &drmbox_esize                           ) != 0) ||
+         ( parsetext(fp, "drm_bottom_or_base_displ_file_eastwest",   's', &ug_eastwest_file                       ) != 0) ||
+         ( parsetext(fp, "drm_bottom_or_base_displ_file_northsouth", 's', &ug_northsouth_file                     ) != 0) ||
+         ( parsetext(fp, "ug_timestep",                              'd', &ug_dt                                  ) != 0) ||
+
+         ( parsetext(fp, "Ts",                                    'd', &Ts                                        ) != 0) ||
+         ( parsetext(fp, "region_length_east_m",                  'd', &L_ew                                      ) != 0) ||
+         ( parsetext(fp, "region_length_north_m",                 'd', &L_ns                                      ) != 0) ||
+         ( parsetext(fp, "fc",                                    'd', &fc                                        ) != 0) ||
+         ( parsetext(fp, "Uo",                                    'd', &Uo                                        ) != 0) ||
+         ( parsetext(fp, "planewave_strike",                      'd', &planewave_strike                          ) != 0) )
     {
         fprintf( stderr,
                  "Error parsing planewaves parameters from %s\n",
@@ -155,6 +181,44 @@ drm_planewaves_initparameters ( const char *parametersin ) {
         return -1;
     }
 
+	if ( ( fp_ug_EW   = fopen ( ug_eastwest_file ,   "r") ) == NULL ) {
+	    fprintf(stderr, "Error opening east-west ground motion component file\n" );
+	    return -1;
+	}
+
+	if ( ( fp_ug_NS   = fopen ( ug_northsouth_file ,   "r") ) == NULL ) {
+	    fprintf(stderr, "Error opening east-west ground motion component file\n" );
+	    return -1;
+	}
+
+	fscanf( fp_ug_EW,   " %d ", &no_data_ew );
+	fscanf( fp_ug_NS,   " %d ", &no_data_ns );
+
+
+	if ( no_data_ew !=  no_data_ns ) {
+	    fprintf(stderr, "Ground motion components with different number of data \n" );
+	    return -1;
+	}
+
+	the_Ug_NoData = no_data_ew;
+
+	theUg_NS        = (double*)malloc( sizeof(double) * the_Ug_NoData );
+	theUg_EW        = (double*)malloc( sizeof(double) * the_Ug_NoData );
+
+
+	if ( ( theUg_NS == NULL ) || ( theUg_EW == NULL )  ) {
+		fprintf( stderr, "Error allocating transient array for the ug data"
+				"in drm_planewaves_initparameters " );
+		return -1;
+	}
+
+	for ( i_ug = 0; i_ug < the_Ug_NoData; ++i_ug ) {
+
+	    fscanf(fp_ug_NS,   " %lf ", &(theUg_NS[i_ug]));
+	    fscanf(fp_ug_EW,   " %lf ", &(theUg_EW[i_ug]));
+
+	}
+
     /*  Initialize the static global variables */
 	thePlaneWaveType                        = planewave;
 	theDRMBox_halfwidthElements_east_west   = drmbox_halfwidth_elements_eastwest;
@@ -169,6 +233,8 @@ drm_planewaves_initparameters ( const char *parametersin ) {
 	thedrmbox_esize                  = drmbox_esize;
 
     fclose(fp);
+    fclose(fp_ug_NS);
+    fclose(fp_ug_EW);
 
     return 0;
 }
