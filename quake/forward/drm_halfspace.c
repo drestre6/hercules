@@ -228,8 +228,8 @@ drm_planewaves_initparameters ( const char *parametersin ) {
 	thefc                            = fc;
     theUo                            = Uo;
 	theplanewave_strike              = planewave_strike * PI / 180.00;
-	theXc                            = L_ew / 2.0;
-	theYc                            = L_ns / 2.0;
+	theYc                            = L_ew / 2.0;
+	theXc                            = L_ns / 2.0;
 	thedrmbox_esize                  = drmbox_esize;
 
     fclose(fp);
@@ -278,10 +278,10 @@ void PlaneWaves_solver_init( int32_t myID, mesh_t *myMesh, mysolver_t *mySolver)
 		yo = (node0dat->y)*(myMesh->ticksize);
 		zo = (node0dat->z)*(myMesh->ticksize);
 
-		if ( ( yo >= ( theYc - DRM_L ) ) &&         /*bottom*/
-				( yo <  ( theYc + DRM_L ) ) &&
-				( xo >= ( theXc - DRM_B ) ) &&
-				( xo <  ( theXc + DRM_B ) ) &&
+		if ( ( yo >= ( theYc - DRM_B ) ) &&         /*bottom*/
+				( yo <  ( theYc + DRM_B ) ) &&
+				( xo >= ( theXc - DRM_L ) ) &&
+				( xo <  ( theXc + DRM_L ) ) &&
 				( zo ==  DRM_D + thebase_zcoord )          ) {
 
 			myDRMBottomElementsMapping[countbott] = eindex;
