@@ -38,6 +38,7 @@ static int32_t	        theDRMBox_halfwidthElements_east_west  = 0;
 static int32_t	        theDRMBox_halfwidthElements_north_south = 0;
 static int32_t	        theDRMBox_DepthElements = 0;
 static double 	        thedrmbox_esize         = 0.0;
+static double 	        theUg_Dt;
 
 static double             *theUg_NS;
 static double             *theUg_EW;
@@ -60,7 +61,7 @@ static int32_t            myDRM_BottomCount = 0;
 void drm_planewaves_init ( int32_t myID, const char *parametersin ) {
 
 	int     int_message[5];
-	double  double_message[7];
+	double  double_message[8];
 
 	/* Capturing data from file --- only done by PE0 */
 	if (myID == 0) {
@@ -88,8 +89,10 @@ void drm_planewaves_init ( int32_t myID, const char *parametersin ) {
 	double_message[4] = theXc;
 	double_message[5] = theYc;
 	double_message[6] = thedrmbox_esize;
+	double_message[7] = theUg_Dt;
 
-	MPI_Bcast(double_message, 7, MPI_DOUBLE, 0, comm_solver);
+
+	MPI_Bcast(double_message, 8, MPI_DOUBLE, 0, comm_solver);
 	MPI_Bcast(int_message,    5, MPI_INT,    0, comm_solver);
 
 	thePlaneWaveType                         = int_message[0];
@@ -105,6 +108,7 @@ void drm_planewaves_init ( int32_t myID, const char *parametersin ) {
 	theXc               = double_message[4];
 	theYc               = double_message[5];
 	thedrmbox_esize     = double_message[6];
+	theUg_Dt            = double_message[7];
 
 	//    /* allocate table of properties for all other PEs */
 	if (myID != 0) {
@@ -201,6 +205,7 @@ drm_planewaves_initparameters ( const char *parametersin ) {
 	}
 
 	the_Ug_NoData = no_data_ew;
+	theUg_Dt      = ug_dt;
 
 	theUg_NS        = (double*)malloc( sizeof(double) * the_Ug_NoData );
 	theUg_EW        = (double*)malloc( sizeof(double) * the_Ug_NoData );
@@ -224,6 +229,7 @@ drm_planewaves_initparameters ( const char *parametersin ) {
 	theDRMBox_halfwidthElements_east_west   = drmbox_halfwidth_elements_eastwest;
 	theDRMBox_halfwidthElements_north_south = drmbox_halfwidth_elements_northsouth;
 	theDRMBox_DepthElements                 = drmbox_depth_elements;
+
 	theTs                            = Ts;
 	thefc                            = fc;
     theUo                            = Uo;
@@ -344,6 +350,9 @@ void DRM_ForcesinElement ( mesh_t     *myMesh,
 	int32_t	      node0;
 	e_t*          ep;
 
+	int        aux;
+	double 	   fracture, remainder;
+
 	/* Capture the table of elements from the mesh and the size
 	 * This is what gives me the connectivity to nodes */
 	elemp        = &myMesh->elemTable[eindex];
@@ -375,6 +384,11 @@ void DRM_ForcesinElement ( mesh_t     *myMesh,
 	memset( localForce, 0, 8 * sizeof(fvector_t) );
 
 	fvector_t myDisp;
+
+	/* For Interpolation */
+	aux = (int)( ( tt + h/Vs) / theUg_Dt);
+	remainder = ( tt + h/Vs) - aux * theUg_Dt;
+
 	/* forces over f nodes */
 	for (i = 0; i < Nnodes_f; i++) {
 
@@ -386,13 +400,21 @@ void DRM_ForcesinElement ( mesh_t     *myMesh,
 
 			int  nodee = *(e_nodes + j);
 
-			double z_ne = zo + h * CoordArr[ nodee ];   /* get zcoord */
-			getRicker ( &myDisp, z_ne, tt, Vs ); /* get Displ */
+			//double z_ne = zo + h * CoordArr[ nodee ];   /* get zcoord */
+			//getRicker ( &myDisp, z_ne, tt, Vs ); /* get Displ */
+
+			myDisp.f[0] = theUg_NS[aux] + ( theUg_NS[aux + 1] - theUg_NS[aux] ) * remainder / theUg_Dt;
+			myDisp.f[1] = theUg_EW[aux] + ( theUg_EW[aux + 1] - theUg_EW[aux] ) * remainder / theUg_Dt;
+			myDisp.f[2] = 0.0;
 
 			MultAddMatVec( &theK1[ nodef ][ nodee ], &myDisp, -ep->c1, toForce );
 			MultAddMatVec( &theK2[ nodef ][ nodee ], &myDisp, -ep->c2, toForce );
 		}
 	}
+
+	/* For Interpolation */
+	aux = (int)( tt / theUg_Dt);
+	remainder =  tt  - aux * theUg_Dt;
 
 	/* forces over e nodes */
 	for (i = 0; i < Nnodes_e; i++) {
@@ -405,8 +427,11 @@ void DRM_ForcesinElement ( mesh_t     *myMesh,
 
 			int  nodef = *(f_nodes + j);
 
-			double z_nf = zo + h * CoordArr[ nodef ];   /* get zcoord */
-			getRicker ( &myDisp, z_nf, tt, Vs ); /* get Displ */
+			//double z_nf = zo + h * CoordArr[ nodef ];   /* get zcoord */
+			//getRicker ( &myDisp, z_nf, tt, Vs ); /* get Displ */
+			myDisp.f[0] = theUg_NS[aux] + ( theUg_NS[aux + 1] - theUg_NS[aux] ) * remainder / theUg_Dt;
+			myDisp.f[1] = theUg_EW[aux] + ( theUg_EW[aux + 1] - theUg_EW[aux] ) * remainder / theUg_Dt;
+			myDisp.f[2] = 0.0;
 
 			MultAddMatVec( &theK1[ nodee ][ nodef ], &myDisp, ep->c1, toForce );
 			MultAddMatVec( &theK2[ nodee ][ nodef ], &myDisp, ep->c2, toForce );
