@@ -12629,7 +12629,7 @@
 
 
 
-void material_property_relative_V10(double x_input, double y_input, double z_input, double output[3] ) {
+void material_property_relative_V10_local(double x_input, double y_input, double z_input, double output[3] ) {
 
 	int i;
 	int k;
