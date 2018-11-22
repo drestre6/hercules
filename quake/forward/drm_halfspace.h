@@ -18,8 +18,7 @@ int32_t drm_planewaves_initparameters ( const char *parametersin );
 void    PlaneWaves_solver_init( int32_t myID, mesh_t *myMesh, mysolver_t *mySolver);
 void    compute_addforce_PlaneWaves ( mesh_t     *myMesh,
                                 mysolver_t *mySolver,
-                                double      theDeltaT,
-                                int         step,
+                                double      tt,
                                 fmatrix_t (*theK1)[8], fmatrix_t (*theK2)[8]);
 
 void DRM_ForcesinElement ( mesh_t     *myMesh,

@@ -303,8 +303,7 @@ void PlaneWaves_solver_init( int32_t myID, mesh_t *myMesh, mysolver_t *mySolver)
 
 void compute_addforce_PlaneWaves ( mesh_t     *myMesh,
                                 mysolver_t *mySolver,
-                                double      theDeltaT,
-                                int         step,
+                                double      tt,
                                 fmatrix_t (*theK1)[8], fmatrix_t (*theK2)[8])
 {
 
@@ -314,7 +313,7 @@ void compute_addforce_PlaneWaves ( mesh_t     *myMesh,
     int  f_nodes_bottom[4] = { 0, 1, 2, 3 };
     int  e_nodes_bottom[4] = { 4, 5, 6, 7 };
 
-    double tt = theDeltaT * step;
+   // double tt = theDeltaT * step;
     int  *f_nodes, *e_nodes;
 
     /* Loop over bottom elements */

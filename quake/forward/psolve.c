@@ -4198,7 +4198,7 @@ solver_compute_force_planewaves( mesh_t     *myMesh,
 {
     if ( Param.includeIncidentPlaneWaves == YES ) {
         Timer_Start( "Compute addforces Incident Plane Waves" );
-        compute_addforce_PlaneWaves ( myMesh, mySolver, theDeltaT, step, theK1, theK2);
+        compute_addforce_PlaneWaves ( myMesh, mySolver, theDeltaT * step + Param.theStartT , theK1, theK2);
         Timer_Stop( "Compute addforces Incident Plane Waves" );
     }
 }
