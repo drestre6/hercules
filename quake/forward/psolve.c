@@ -7903,7 +7903,7 @@ int main( int argc, char** argv )
 
 
     Timer_Start("Source Init");
-    source_init(Param.parameters_input_file);
+    //source_init(Param.parameters_input_file);
     Timer_Stop("Source Init");
     Timer_Reduce("Source Init", MAX | MIN, comm_solver);
 
