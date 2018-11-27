@@ -4098,7 +4098,7 @@ void base_displacements_fix( mesh_t     *myMesh,
             fvector_t *tm2Disp;
             tm2Disp = mySolver->tm2 + nindex;
             tm2Disp->f[0] =  0.0;
-            tm2Disp->f[1] =  -0.1 * Ricker_fnc ( 0.5, 2.5, t ) - 0.2 * Ricker_fnc ( 1.0, 3.5, t ) - 0.3 * Ricker_fnc ( 2.0, 4.0, t );
+            tm2Disp->f[1] =  ( -0.1 * Ricker_fnc ( 0.5, 2.5, t ) - 0.2 * Ricker_fnc ( 1.0, 3.5, t ) - 0.3 * Ricker_fnc ( 2.0, 4.0, t ) ) / (7.1803 * 4);
             tm2Disp->f[2] =  0.0;
 
         }
@@ -4349,7 +4349,9 @@ void compute_addforce_nl (mesh_t     *myMesh,
 
         memset( localForceDamp, 0, 8 * sizeof(fvector_t) );
 
-        double b_over_dt = ep->c3 / ep->c1;
+        //double b_over_dt = ep->c3 / ep->c1;
+        //double b_over_dt = (1.5/100) / ( 10 * PI * sqrt(theDeltaTSquared) ); // 1.5% at 10Hz
+        double b_over_dt = 0.0005 / sqrt(theDeltaTSquared); //
 
         for (i = 0; i < 8; i++) {
             int32_t    lnid = elemp->lnid[i];

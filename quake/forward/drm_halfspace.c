@@ -779,7 +779,7 @@ double Ricker_displ ( double zp, double Ts, double t, double fc, double Vs  ) {
 
 double Ricker_fnc ( double fo, double To, double t  ) {
 
-	double alfa_sqr = ( PI * fo ) * ( PI * fo ) * ( t - To) ;
+	double alfa_sqr = ( PI * fo ) * ( PI * fo ) * ( t - To) * ( t - To);
 	double uo = ( 1.0 - 2.0 * alfa_sqr ) * exp(-alfa_sqr);
 
 	return uo;
