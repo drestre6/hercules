@@ -32,6 +32,7 @@
 #include "quake_util.h"
 #include "util.h"
 #include "stiffness.h"
+#include "drm_halfspace.h"
 
 #define  QC  qc = 0.577350269189 /* sqrt(3.0)/3.0; */
 
@@ -4087,7 +4088,7 @@ void base_displacements_fix( mesh_t     *myMesh,
 
 
     int32_t nindex;
-    double w = PI, t=(step+1)*dt, A=2.0;
+    double t=(step+1)*dt ;
 
     for ( nindex = 0; nindex < myMesh->nharbored; nindex++ ) {
 
@@ -4097,7 +4098,7 @@ void base_displacements_fix( mesh_t     *myMesh,
             fvector_t *tm2Disp;
             tm2Disp = mySolver->tm2 + nindex;
             tm2Disp->f[0] =  0.0;
-            tm2Disp->f[1] =  A * sin(w*t) / (w * w) ;
+            tm2Disp->f[1] =  -0.1 * Ricker_fnc ( 0.5, 2.5, t ) - 0.2 * Ricker_fnc ( 1.0, 3.5, t ) - 0.3 * Ricker_fnc ( 2.0, 4.0, t );
             tm2Disp->f[2] =  0.0;
 
         }

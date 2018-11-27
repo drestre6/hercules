@@ -29,6 +29,7 @@ void DRM_ForcesinElement ( mesh_t     *myMesh,
 
 void   getRicker    ( fvector_t *myDisp, double zp, double t, double Vs );
 double Ricker_displ ( double zp, double Ts, double t, double fc, double Vs  );
+double Ricker_fnc ( double fo, double To, double t );
 
 
 #endif /* DRM_HALFSPACE_H_ */
