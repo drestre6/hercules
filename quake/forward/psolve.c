@@ -4310,9 +4310,9 @@ solver_compute_displacement( mysolver_t* solver, mesh_t* mesh )
                 tm3Disp->f[2] = tm2Disp->f[2];
             }
 
-        	tm2Disp->f[0] = 0.0;
+        	tm2Disp->f[0] = nodalForce.f[0] / np->mass_simple*0;
         	tm2Disp->f[1] = nodalForce.f[1] / np->mass_simple;
-        	tm2Disp->f[2] = 0.0;
+        	tm2Disp->f[2] = nodalForce.f[2] / np->mass_simple*0;
 
 /*        	tm2Disp->f[0] = nodalForce.f[0] / np->mass_simple;
         	tm2Disp->f[1] = nodalForce.f[1] / np->mass_simple;

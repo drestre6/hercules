@@ -2785,8 +2785,8 @@ void material_update ( nlconstants_t constants, tensor_t e_n, tensor_t e_n1, ten
 
 	}  else if ( theMaterialModel != MOHR_COULOMB ) {
 
-		//MatUpd_vMGeneral ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
-		MatUpd_Exponential ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
+		MatUpd_vMGeneral ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
+		//MatUpd_Exponential ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
 
 		return;
 
@@ -4351,7 +4351,7 @@ void compute_addforce_nl (mesh_t     *myMesh,
 
         //double b_over_dt = ep->c3 / ep->c1;
         //double b_over_dt = (1.5/100) / ( 10 * PI * sqrt(theDeltaTSquared) ); // 1.5% at 10Hz
-        double b_over_dt = 0.0005 / sqrt(theDeltaTSquared); //
+        double b_over_dt = 0.000 / sqrt(theDeltaTSquared); //
 
         for (i = 0; i < 8; i++) {
             int32_t    lnid = elemp->lnid[i];
