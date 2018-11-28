@@ -4184,7 +4184,6 @@ void base_displacements_fix( mesh_t     *myMesh,
             fvector_t *tm2Disp;
             tm2Disp = mySolver->tm2 + nindex;
             tm2Disp->f[0] =  0.0;
-            //tm2Disp->f[1] =  A * sin(w*t) / (w * w)   ;
             tm2Disp->f[1] =  0.0  ;
             tm2Disp->f[2] =  0.0;
 
@@ -4203,28 +4202,25 @@ void set_top_displacements( mesh_t     *myMesh,
                                   int         step )
 {
 
-	/*
+
 	int32_t nindex;
 
-	double P = 0.025 , Tt = 50.0, Fz, Fhx, Fhy;
+	double P = 0.125 , Tt = 30.0, Fz;
 	double t=(step+1)*dt;
 
-	Fz = P/Tt*t;
+
 	if (t <= Tt) {
-		Fhx = -Fz/2;
-		Fhy = -Fz/2;
-	} else if (t > Tt && t <= 2*Tt) {
-		Fhx = -P/2;
-		Fhy = -P/2;
-		Fz =  P - P/Tt*(t-Tt);
-	} else if (t> 2*Tt && t < 3*Tt) {
-		Fhx = -P/2 * ( 1 - (t-2*Tt)/Tt );
-		Fhy = -P/2 * ( 1 - (t-2*Tt)/Tt );
-		Fz =   0;
-	} else {
-		Fhx = -P/4 * ( 1 - (t-2*Tt)/Tt );
-		Fhy = -P/2 * ( 1 - (t-2*Tt)/Tt );
-		Fz =   0;
+		Fz = P/Tt*t;
+		//Fhx = -Fz/2;
+		//Fhy = -Fz/2;
+	} else if (t > Tt && t <= 3.0*Tt) {
+		//Fhx = -P/2;
+		//Fhy = -P/2;
+		Fz =  P * ( 1.0 - (t-Tt) / Tt );
+	} else if (t> 3.0*Tt && t < 5.0*Tt) {
+		//Fhx = -P/2 * ( 1 - (t-2*Tt)/Tt );
+		//Fhy = -P/2 * ( 1 - (t-2*Tt)/Tt );
+		Fz =  P * ( -1.0 + (t - 3.0*Tt) / Tt );
 	}
 
 	for ( nindex = 0; nindex < myMesh->nharbored; nindex++ ) {
@@ -4235,15 +4231,8 @@ void set_top_displacements( mesh_t     *myMesh,
 		fvector_t *tm2Disp;
 		tm2Disp = mySolver->tm2 + nindex;
 
-		if ( z_m == 0.0 ) {
+		if ( z_m == 0.0 )
 			tm2Disp->f[2] = Fz;
-			if ( t> 3*Tt) {
-				tm2Disp->f[0] = Fhx;
-				tm2Disp->f[1] = Fhy;
-				return ;
-			}
-
-		}
 
 		if ( x_m == 0.0 )
 			tm2Disp->f[0] = 0;
@@ -4252,16 +4241,17 @@ void set_top_displacements( mesh_t     *myMesh,
 			tm2Disp->f[1] = 0;
 
 		if ( x_m == totalDomainLx )
-			tm2Disp->f[0] = Fhx;
+			tm2Disp->f[0] = -Fz / 2.0;
 
 		if ( y_m == totalDomainLy )
-			tm2Disp->f[1] = Fhy;
-
+			tm2Disp->f[1] = -Fz / 2.0;
 
 	}
 
-	return;*/
-	double vmax= 4.0 * 1.25 * 0.25/100;
+	return;
+
+	/*
+	double vmax= 4.0 * 1.25 * 0.25/10;
 
     int32_t nindex;
 
@@ -4269,10 +4259,10 @@ void set_top_displacements( mesh_t     *myMesh,
     double t=(step+1)*dt;
 
     if (t<=Tt) {
-        F = 2.5 * vmax/Tt*t;
+        F =  vmax/Tt*t;
 
     } else if ( t > Tt && t <= 2.0*Tt ) {
-    	F = ( 2.5 - 2.25/Tt * (t -Tt) ) * vmax;
+    	F = ( 1.0 - 1.0/Tt * (t -Tt) ) * vmax;
 
     } else if ( t > 2*Tt && t <= 3.0*Tt ) {
     	F = ( 0.25 + 0.75/Tt * (t - 2*Tt) ) * vmax;
@@ -4295,7 +4285,7 @@ void set_top_displacements( mesh_t     *myMesh,
 
     } else {
     	F = ( -0.05 + 2.55/Tt * (t - 8*Tt) ) * vmax;
-    }
+    } */
 
 
 	/* r0 = linspace(0,2.5*vmax,Ndiv);
@@ -4333,6 +4323,7 @@ void set_top_displacements( mesh_t     *myMesh,
 
 */
 
+    /*
 	    for ( nindex = 0; nindex < myMesh->nharbored; nindex++ ) {
 
 	        double z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].z;
@@ -4346,7 +4337,7 @@ void set_top_displacements( mesh_t     *myMesh,
 	       }
 	   }
 
-	    return;
+	    return;  */
 
    /*
     int32_t nindex;
@@ -4587,7 +4578,9 @@ void compute_addforce_nl (mesh_t     *myMesh,
 
         // double b_over_dt = ep->c3 / ep->c1;
         // b_over_dt = \xi / (f \pi Delta_t)
-        double b_over_dt = (1.5/100) / ( 10 * PI * sqrt(theDeltaTSquared) ); // 1.5% at 10Hz
+        //double b_over_dt = (1.5/100) / ( 10 * PI * sqrt(theDeltaTSquared) ); // 1.5% at 10Hz
+
+        double b_over_dt = ( 0.0005 ) / ( sqrt(theDeltaTSquared) ); // 1.5% at 10Hz
 
         for (i = 0; i < 8; i++) {
             int32_t    lnid = elemp->lnid[i];
