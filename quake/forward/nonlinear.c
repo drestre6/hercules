@@ -4351,7 +4351,7 @@ void compute_addforce_nl (mesh_t     *myMesh,
 
         //double b_over_dt = ep->c3 / ep->c1;
         //double b_over_dt = (1.5/100) / ( 10 * PI * sqrt(theDeltaTSquared) ); // 1.5% at 10Hz
-        double b_over_dt = 0.000 / sqrt(theDeltaTSquared); //
+        double b_over_dt = 0.0005 / sqrt(theDeltaTSquared); //
 
         for (i = 0; i < 8; i++) {
             int32_t    lnid = elemp->lnid[i];
