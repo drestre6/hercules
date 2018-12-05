@@ -12672,9 +12672,9 @@ void material_property_relative_V10_local(double x_input, double y_input, double
 
 	if (!(x_input >= xmin && x_input <= xmax && y_input >= ymin && y_input <= ymax && z_input >= -300.0)) {
 
-		output[0] = 1000.0;
-		output[1] = 2000.0;
-		output[2] = 2200.0;
+		output[0] = 3200.0;
+		output[1] = 5500.0;
+		output[2] = 2800.0;
 
 		return ;
 	}
