@@ -4235,6 +4235,18 @@ solver_compute_force_baseAccel( mysolver_t *solver, mesh_t *mesh, int step )
 
 }
 
+
+static void
+solver_compute_pressure( mysolver_t *solver, mesh_t *mesh, int step )
+{
+	if ( Param.includeNonlinearAnalysis == YES ) {
+		Timer_Start( "Compute base acceleration forces" );
+		compute_addforce_pressure ( mesh, solver, Param.theDomainX, Param.theDomainY, Param.theDomainZ, Param.theDeltaT, step);
+		Timer_Stop(  "Compute base acceleration forces" );
+	}
+
+}
+
 /** Send the forces on dangling nodes to their owner processors */
 static void solver_send_force_dangling( mysolver_t* solver )
 {
@@ -4564,6 +4576,7 @@ static void solver_run()
         solver_compute_force_gravity( Global.mySolver, Global.myMesh, step );
         solver_compute_force_nonlinear( Global.mySolver, Global.myMesh, Param.theDeltaTSquared );
         solver_compute_force_planewaves( Global.myMesh, Global.mySolver, Param.theDeltaT, step, Global.theK1, Global.theK2 );
+        solver_compute_pressure( Global.mySolver, Global.myMesh, step );
         //solver_compute_force_baseAccel( Global.mySolver, Global.myMesh, step );
 
         Timer_Stop( "Compute Physics" );

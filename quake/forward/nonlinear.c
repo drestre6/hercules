@@ -4629,7 +4629,6 @@ void compute_addforce_nl (mesh_t     *myMesh,
 
 void compute_addforce_pressure (mesh_t     *myMesh,
                           mysolver_t *mySolver,
-                          double      theDeltaTSquared,
                           double      totalDomainLx,
                           double      totalDomainLy,
                           double      totalDomainLz,
