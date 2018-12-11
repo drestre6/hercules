@@ -4231,8 +4231,8 @@ void set_top_displacements( mesh_t     *myMesh,
 		fvector_t *tm2Disp;
 		tm2Disp = mySolver->tm2 + nindex;
 
-		if ( z_m == 0.0 )
-			tm2Disp->f[2] = Fz;
+		/* if ( z_m == 0.0 )
+			tm2Disp->f[2] = Fz; */
 
 		if ( x_m == 0.0 )
 			tm2Disp->f[0] = 0;
@@ -4240,11 +4240,11 @@ void set_top_displacements( mesh_t     *myMesh,
 		if ( y_m == 0.0 )
 			tm2Disp->f[1] = 0;
 
-		if ( x_m == totalDomainLx )
-			tm2Disp->f[0] = -Fz / 2.0;
+		/* if ( x_m == totalDomainLx )
+			tm2Disp->f[0] = -Fz / 1.0;
 
 		if ( y_m == totalDomainLy )
-			tm2Disp->f[1] = -Fz / 2.0;
+			tm2Disp->f[1] = -Fz / 1.0; */
 
 	}
 
@@ -4620,6 +4620,106 @@ void compute_addforce_nl (mesh_t     *myMesh,
         /* =-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
         /* =-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
         /* =-=-==-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
+
+    } /* all elements */
+
+    return;
+}
+
+
+void compute_addforce_pressure (mesh_t     *myMesh,
+                          mysolver_t *mySolver,
+                          double      theDeltaTSquared,
+                          double      totalDomainLx,
+                          double      totalDomainLy,
+                          double      totalDomainLz,
+                          double dt, double step)
+{
+
+    int       i;
+    int32_t   eindex;
+    int32_t   nl_eindex;
+    double x_m, y_m, z_m;
+	double t=(step+1)*dt;
+
+    /* Loop on the number of elements */
+    for (nl_eindex = 0; nl_eindex < myNonlinElementsCount; nl_eindex++) {
+
+        elem_t  *elemp;
+        edata_t *edata;
+        double   h;
+
+        e_t*    ep;
+
+        eindex = myNonlinElementsMapping[nl_eindex];
+
+        /* Capture the table of elements from the mesh and the size
+         * This is what gives me the connectivity to nodes */
+        elemp = &myMesh->elemTable[eindex];
+        edata = (edata_t *)elemp->data;
+        ep    = &mySolver->eTable[nl_eindex] ;
+
+        h    = (double)edata->edgesize;
+
+        double P = 800 * h * h * t / 30.0;
+
+        /* Loop over the 8 element nodes:
+         * Add the contribution calculated above to the node
+         * forces carried from the source and stiffness.
+         */
+        for (i = 0; i < 8; i++) {
+
+            int32_t    lnid;
+            fvector_t *nodalForce;
+
+            lnid = elemp->lnid[i];
+            nodalForce = mySolver->force + lnid;
+
+            x_m = (myMesh->ticksize)*(double)myMesh->nodeTable[lnid].x;
+            y_m = (myMesh->ticksize)*(double)myMesh->nodeTable[lnid].y;
+            z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[lnid].z;
+
+            // Z load
+            if ( z_m == 0.0 ) {
+            	if (  ( x_m == totalDomainLx  &&  y_m == totalDomainLy ) ||
+            	      ( x_m == 0.0            &&  y_m == totalDomainLy ) ||
+            		  ( x_m == 0.0            &&  y_m == 0.0           ) ||
+            		  ( x_m == totalDomainLx  &&  y_m == 0.0           )  ) {
+            		nodalForce->f[2] += P / 4.0;
+            	} else  if ( y_m == totalDomainLy || x_m == 0.0 || y_m == 0.0 || x_m == totalDomainLx ) {
+            		nodalForce->f[2] += P / 2.0;
+            	} else
+            		nodalForce->f[2] += P;
+            }
+
+            // X load
+            if ( x_m == totalDomainLx ) {
+            	if ( ( z_m == totalDomainLz && y_m == 0.0           ) ||
+            		 ( z_m == totalDomainLz && y_m == totalDomainLy ) ||
+            		 ( z_m == 0.0           && y_m == 0.0           ) ||
+            		 ( z_m == 0.0           && y_m == totalDomainLy )  ) {
+            		nodalForce->f[0] += - P / 4.0;
+            	} else  if ( y_m == totalDomainLy || z_m == 0.0 || y_m == 0.0 || z_m == totalDomainLz ) {
+            		nodalForce->f[0] += - P / 2.0;
+            	} else
+            		nodalForce->f[0] += - P;
+            }
+
+            // Y load
+            if ( y_m == totalDomainLy ) {
+            	if ( ( z_m == totalDomainLz && x_m == 0.0           ) ||
+            		 ( z_m == totalDomainLz && x_m == totalDomainLx ) ||
+            		 ( z_m == 0.0           && x_m == 0.0           ) ||
+            		 ( z_m == 0.0           && x_m == totalDomainLx )  ) {
+            		nodalForce->f[1] += - P / 4.0;
+            	} else  if ( x_m == totalDomainLx || z_m == 0.0 || x_m == 0.0 || z_m == totalDomainLz ) {
+            		nodalForce->f[1] += - P / 2.0;
+            	} else
+            		nodalForce->f[1] += - P;
+            }
+
+        } /* element nodes */
+
 
     } /* all elements */
 
