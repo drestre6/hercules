@@ -397,6 +397,16 @@ void nonlinear_yield_stats(mesh_t *myMesh, int32_t myID, int32_t theTotalSteps, 
 
 void check_balance( int32_t myID );
 
+
+void compute_addforce_pressure (mesh_t     *myMesh,
+                          mysolver_t *mySolver,
+                          double      theDeltaTSquared,
+                          double      totalDomainLx,
+                          double      totalDomainLy,
+                          double      totalDomainLz,
+                          double dt, double step) ;
+
+
 #endif /* Q_NONLINEAR_H */
 
 
