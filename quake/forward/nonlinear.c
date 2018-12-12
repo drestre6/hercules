@@ -4183,8 +4183,8 @@ void base_displacements_fix( mesh_t     *myMesh,
         if ( z_m == totalDomainDepth ) {
             fvector_t *tm2Disp;
             tm2Disp = mySolver->tm2 + nindex;
-            tm2Disp->f[0] =  0.0;
-            tm2Disp->f[1] =  0.0  ;
+            // tm2Disp->f[0] =  0.0;
+            // tm2Disp->f[1] =  0.0  ;
             tm2Disp->f[2] =  0.0;
 
         }
@@ -4231,8 +4231,8 @@ void set_top_displacements( mesh_t     *myMesh,
 		fvector_t *tm2Disp;
 		tm2Disp = mySolver->tm2 + nindex;
 
-		/* if ( z_m == 0.0 )
-			tm2Disp->f[2] = Fz; */
+		//if ( z_m == 0.0 )
+		//	tm2Disp->f[2] = Fz;
 
 		if ( x_m == 0.0 )
 			tm2Disp->f[0] = 0;
@@ -4240,11 +4240,11 @@ void set_top_displacements( mesh_t     *myMesh,
 		if ( y_m == 0.0 )
 			tm2Disp->f[1] = 0;
 
-		/* if ( x_m == totalDomainLx )
-			tm2Disp->f[0] = -Fz / 1.0;
+		// if ( x_m == totalDomainLx )
+		//tm2Disp->f[0] = -Fz / 1.0;
 
-		if ( y_m == totalDomainLy )
-			tm2Disp->f[1] = -Fz / 1.0; */
+		 //if ( y_m == totalDomainLy )
+		 //tm2Disp->f[1] = -Fz / 1.0;
 
 	}
 
@@ -4660,7 +4660,9 @@ void compute_addforce_pressure (mesh_t     *myMesh,
 
         h    = (double)edata->edgesize;
 
-        double P = 800 * h * h * t / 30.0;
+
+        double Pmax = 800000 * h * h  * dt * dt ;
+        double P = Pmax *  t / 30.0;
 
         /* Loop over the 8 element nodes:
          * Add the contribution calculated above to the node
@@ -4678,44 +4680,40 @@ void compute_addforce_pressure (mesh_t     *myMesh,
             y_m = (myMesh->ticksize)*(double)myMesh->nodeTable[lnid].y;
             z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[lnid].z;
 
-            // Z load
-            if ( z_m == 0.0 ) {
-            	if (  ( x_m == totalDomainLx  &&  y_m == totalDomainLy ) ||
-            	      ( x_m == 0.0            &&  y_m == totalDomainLy ) ||
-            		  ( x_m == 0.0            &&  y_m == 0.0           ) ||
-            		  ( x_m == totalDomainLx  &&  y_m == 0.0           )  ) {
+            if (t <= 30) {
+            	// Z load
+            	if ( z_m == 0.0 ) {
             		nodalForce->f[2] += P / 4.0;
-            	} else  if ( y_m == totalDomainLy || x_m == 0.0 || y_m == 0.0 || x_m == totalDomainLx ) {
-            		nodalForce->f[2] += P / 2.0;
-            	} else
-            		nodalForce->f[2] += P;
-            }
+            	}
 
-            // X load
-            if ( x_m == totalDomainLx ) {
-            	if ( ( z_m == totalDomainLz && y_m == 0.0           ) ||
-            		 ( z_m == totalDomainLz && y_m == totalDomainLy ) ||
-            		 ( z_m == 0.0           && y_m == 0.0           ) ||
-            		 ( z_m == 0.0           && y_m == totalDomainLy )  ) {
+            	// X load
+            	if ( x_m == totalDomainLx ) {
             		nodalForce->f[0] += - P / 4.0;
-            	} else  if ( y_m == totalDomainLy || z_m == 0.0 || y_m == 0.0 || z_m == totalDomainLz ) {
-            		nodalForce->f[0] += - P / 2.0;
-            	} else
-            		nodalForce->f[0] += - P;
+            	}
+
+            	// Y load
+            	if ( y_m == totalDomainLy ) {
+            		nodalForce->f[1] += - P / 4.0;
+            	}
+            } else  {
+
+            	// Z load
+            	if ( z_m == 0.0 ) {
+            		nodalForce->f[2] += P / 4.0;
+            	}
+
+            	// X load
+            	if ( x_m == totalDomainLx ) {
+            		nodalForce->f[0] += - Pmax / 4.0;
+            	}
+
+            	// Y load
+            	if ( y_m == totalDomainLy ) {
+            		nodalForce->f[1] += - Pmax / 4.0;
+            	}
+
             }
 
-            // Y load
-            if ( y_m == totalDomainLy ) {
-            	if ( ( z_m == totalDomainLz && x_m == 0.0           ) ||
-            		 ( z_m == totalDomainLz && x_m == totalDomainLx ) ||
-            		 ( z_m == 0.0           && x_m == 0.0           ) ||
-            		 ( z_m == 0.0           && x_m == totalDomainLx )  ) {
-            		nodalForce->f[1] += - P / 4.0;
-            	} else  if ( x_m == totalDomainLx || z_m == 0.0 || x_m == 0.0 || z_m == totalDomainLz ) {
-            		nodalForce->f[1] += - P / 2.0;
-            	} else
-            		nodalForce->f[1] += - P;
-            }
 
         } /* element nodes */
 
