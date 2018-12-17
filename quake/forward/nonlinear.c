@@ -4639,7 +4639,7 @@ void compute_addforce_pressure (mesh_t     *myMesh,
     int32_t   eindex;
     int32_t   nl_eindex;
     double x_m, y_m, z_m;
-	double t=(step+1)*dt;
+	double t=(step+1)*dt, Tt=40.0;
 
     /* Loop on the number of elements */
     for (nl_eindex = 0; nl_eindex < myNonlinElementsCount; nl_eindex++) {
@@ -4661,8 +4661,8 @@ void compute_addforce_pressure (mesh_t     *myMesh,
         h    = (double)edata->edgesize;
 
 
-        double Pmax = 800000 * h * h  * dt * dt ;
-        double P = Pmax *  t / 30.0;
+        double Pmax = 10*20*1000 * h * h  * dt * dt ;
+        double P = Pmax *  t / Tt;
 
         /* Loop over the 8 element nodes:
          * Add the contribution calculated above to the node
@@ -4680,7 +4680,7 @@ void compute_addforce_pressure (mesh_t     *myMesh,
             y_m = (myMesh->ticksize)*(double)myMesh->nodeTable[lnid].y;
             z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[lnid].z;
 
-            if (t <= 30) {
+            if (t <= Tt) {
             	// Z load
             	if ( z_m == 0.0 ) {
             		nodalForce->f[2] += P / 4.0;
