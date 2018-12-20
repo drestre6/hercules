@@ -159,6 +159,8 @@ typedef struct nlsolver_t {
 	qpvectors_t   *kappa_impl;
 	qpvectors_t   *xi_impl;
 
+	qptensors_t   *S0;
+
 
 } nlsolver_t;
 
@@ -310,7 +312,7 @@ double baseAccel (  double dt, double step );
 void base_displacements_fix( mesh_t     *myMesh, mysolver_t *mySolver, double totalDomainDepth, double dt,int step);
 
 void Uy_displacements_fix(  mesh_t  *myMesh, mysolver_t *mySolver, double totalDomainDepth, double totalDomainLx, double totalDomainLy, double dt, int step );
-void set_top_displacements( mesh_t  *myMesh, mysolver_t *mySolver, double dt, double totalDomainLx, double totalDomainLy, int step );
+void fix_displacements( mesh_t  *myMesh, mysolver_t *mySolver, double dt, double totalDomainLx, double totalDomainLy, double totalDomainDepth, int step );
 
 tensor_t ApproxGravity_tensor(double Szz, double phi, double h, double lz, double rho);
 

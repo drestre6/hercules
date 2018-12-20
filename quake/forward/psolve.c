@@ -4383,13 +4383,13 @@ solver_baseDispl_fix(int step)
 }
 
 static void
-solver_TopDispl_fix(int step)
+solver_FixDispl(int step)
 {
     if ( Param.includeNonlinearAnalysis == YES ) {
         Timer_Start( "Compute TopDispl " );
 
-        set_top_displacements( Global.myMesh, Global.mySolver,
-                                         Param.theDeltaT, Param.theDomainX, Param.theDomainY, step );
+        fix_displacements( Global.myMesh, Global.mySolver,
+                                         Param.theDeltaT, Param.theDomainX, Param.theDomainY, Param.theDomainZ, step );
 
         Timer_Stop( "Compute TopDispl " );
     }
@@ -4546,13 +4546,24 @@ static void solver_run()
     /* march forward in time */
     for (step = startingStep; step < Param.theTotalSteps; step++) {
 
-        fvector_t* tmpvector;
 
-        /* prepare for a new iteration
-         * swap displacement vectors for t(n) and t(n-1) */
-        tmpvector     = Global.mySolver->tm2;
-        Global.mySolver->tm2 = Global.mySolver->tm1;
-        Global.mySolver->tm1 = tmpvector;
+    	/*
+        if ( step*Param.theDeltaT == 20.00  ) {
+            Global.mySolver->tm1    = (fvector_t *)calloc(Global.myMesh->nharbored, sizeof(fvector_t));
+            Global.mySolver->tm2    = (fvector_t *)calloc(Global.myMesh->nharbored, sizeof(fvector_t));
+
+        } else { */
+    	/* prepare for a new iteration
+    	 * swap displacement vectors for t(n) and t(n-1) */
+    	if ( step*Param.theDeltaT == 20.00  ) {
+    		Global.mySolver->tm1    = (fvector_t *)calloc(Global.myMesh->nharbored, sizeof(fvector_t));
+    		Global.mySolver->tm2    = (fvector_t *)calloc(Global.myMesh->nharbored, sizeof(fvector_t));
+    	} else {
+    		fvector_t* tmpvector;
+    		tmpvector     = Global.mySolver->tm2;
+    		Global.mySolver->tm2 = Global.mySolver->tm1;
+    		Global.mySolver->tm1 = tmpvector;
+    	}
 
         Timer_Start( "Solver I/O" );
         solver_write_checkpoint( step, startingStep );
@@ -4576,7 +4587,7 @@ static void solver_run()
         solver_compute_force_gravity( Global.mySolver, Global.myMesh, step );
         solver_compute_force_nonlinear( Global.mySolver, Global.myMesh, Param.theDeltaTSquared );
         solver_compute_force_planewaves( Global.myMesh, Global.mySolver, Param.theDeltaT, step, Global.theK1, Global.theK2 );
-        solver_compute_pressure( Global.mySolver, Global.myMesh, step );
+        //solver_compute_pressure( Global.mySolver, Global.myMesh, step );
         //solver_compute_force_baseAccel( Global.mySolver, Global.myMesh, step );
 
         Timer_Stop( "Compute Physics" );
@@ -4592,9 +4603,15 @@ static void solver_run()
         Timer_Start( "Compute Physics" );
         solver_compute_displacement( Global.mySolver, Global.myMesh );
         solver_geostatic_fix( step );
-        solver_baseDispl_fix( step );
+
+        if ( step*Param.theDeltaT == 20.00  ) {
+            Global.mySolver->tm1    = (fvector_t *)calloc(Global.myMesh->nharbored, sizeof(fvector_t));
+            Global.mySolver->tm2    = (fvector_t *)calloc(Global.myMesh->nharbored, sizeof(fvector_t));
+        }
+
+        //solver_baseDispl_fix( step );
         //solver_UyDispl_fix  ( step );
-        solver_TopDispl_fix ( step );
+        solver_FixDispl ( step );
         solver_load_fixedbase_displacements( Global.mySolver, step );
         Timer_Stop( "Compute Physics" );
 

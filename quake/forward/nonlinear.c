@@ -864,6 +864,8 @@ void nonlinear_solver_init(int32_t myID, mesh_t *myMesh, double depth) {
         (qpvectors_t *)calloc(myNonlinElementsCount, sizeof(qpvectors_t));
     myNonlinSolver->Sref =
         (qptensors_t *)calloc(myNonlinElementsCount, sizeof(qptensors_t));
+    myNonlinSolver->S0 =
+        (qptensors_t *)calloc(myNonlinElementsCount, sizeof(qptensors_t));
 
     myNonlinSolver->kappa_impl =
         (qpvectors_t *)calloc(myNonlinElementsCount, sizeof(qpvectors_t));
@@ -885,6 +887,7 @@ void nonlinear_solver_init(int32_t myID, mesh_t *myMesh, double depth) {
          (myNonlinSolver->Sv_n                == NULL) ||
          (myNonlinSolver->psi_n               == NULL) ||
          (myNonlinSolver->kappa               == NULL) ||
+         (myNonlinSolver->S0                  == NULL) ||
          (myNonlinSolver->Sref                == NULL) ||
          (myNonlinSolver->kappa_impl          == NULL) ||
          (myNonlinSolver->xi_impl             == NULL) ) {
@@ -1651,10 +1654,10 @@ void MatUpd_vMGeneral ( nlconstants_t el_cnt, double *kappa,
 	double   De_vol   = tensor_I1 ( De );
 	tensor_t De_dev   = tensor_deviator( De, tensor_octahedral ( De_vol ) );
 
-	tensor_t alpha_n   = scaled_tensor( *sigma_ref, kappa_n/(1.0+kappa_n));
-	tensor_t Salpha_n  = subtrac_tensors( Sdev_n1, alpha_n );
+	//tensor_t alpha_n   = scaled_tensor( *sigma_ref, kappa_n/(1.0+kappa_n));
+	//tensor_t Salpha_n  = subtrac_tensors( Sdev_n1, alpha_n );
 	//double   lo_unlo2  = ddot_tensors(Salpha_n,De_dev) / sqrt( ddot_tensors(Salpha_n,Salpha_n)  );
-	//double   norm_de   =  sqrt( ddot_tensors(De_dev,De_dev));
+	double   norm_de   =  sqrt( ddot_tensors(De_dev,De_dev));
 
 	Den1 = ddot_tensors(Sdev_n1, subtrac_tensors (Sdev_n1 , *sigma_ref));
 	Den2 = kappa_n * ( ddot_tensors(subtrac_tensors (Sdev_n1 , *sigma_ref), subtrac_tensors (Sdev_n1 , *sigma_ref)) );
@@ -1662,7 +1665,7 @@ void MatUpd_vMGeneral ( nlconstants_t el_cnt, double *kappa,
 
 	load_unload = -ddot_tensors(Num,De_dev) / (Den1 + Den2);
 
-	if ( load_unload > 0 ) {
+	if ( load_unload > 1E-15 ) {
 
 		*kappa = get_kappaUnLoading_II(  el_cnt, Sdev_n1,  De_dev, ErrMax, &xi1 );
 	    *sigma_ref = copy_tensor( Sdev_n1 );
@@ -2869,6 +2872,7 @@ void material_update ( nlconstants_t constants, tensor_t e_n, tensor_t e_n1, ten
 
 	}  else if ( theMaterialModel != MOHR_COULOMB ) {
 
+		//*sigma      = add_tensors( *sigma, sigma0 );
 		MatUpd_vMGeneral ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
 		//MatUpd_EXP_Implicit ( constants,  kp,  e_n,  e_n1, sigma_ref, sigma, flagTolSubSteps, flagNoSubSteps, ErrBA, kappa_impl, xi_impl );
 
@@ -4172,56 +4176,89 @@ void base_displacements_fix( mesh_t     *myMesh,
 
 
     int32_t nindex;
-    //double w = PI, t=step*dt, A=0.5;
+    double  t= (step+1)*dt, Tt=20.0;
     //A=0.05/3.25
     //   A/w/w * sin (w t) for displacement with A = 0.15 and w = pi/10.
 
     for ( nindex = 0; nindex < myMesh->nharbored; nindex++ ) {
 
         double z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].z;
+		double x_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].x;
+		double y_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].y;
+
+        fvector_t *tm2Disp;
+        tm2Disp = mySolver->tm2 + nindex;
 
         if ( z_m == totalDomainDepth ) {
-            fvector_t *tm2Disp;
-            tm2Disp = mySolver->tm2 + nindex;
-            // tm2Disp->f[0] =  0.0;
-            // tm2Disp->f[1] =  0.0  ;
             tm2Disp->f[2] =  0.0;
-
+            //tm2Disp->f[1] =  0.0;
+            //tm2Disp->f[0] =  0.0;
         }
+
+
+
     }
 
     return;
 }
 
 
-void set_top_displacements( mesh_t     *myMesh,
+void fix_displacements( mesh_t     *myMesh,
                                   mysolver_t *mySolver,
                                   double      dt,
                                   double      totalDomainLx,
                                   double      totalDomainLy,
+                                  double      totalDomainDepth,
                                   int         step )
 {
 
 
 	int32_t nindex;
 
-	double P = 0.125 , Tt = 30.0, Fz;
-	double t=(step+1)*dt;
+	double P = 0.125 , Tt = 20.0, Fz, Fy;
+	double t=(step+1)*dt, psi = t/Tt;
 
+	double Uy_t20[8] = { 0.0, 0.0, 0.0, 0.0311875000,0.0623750001 ,0.0311875000, 0.0311875000, 0.0623750001, 0.0623750001    };
+    // triaxial
+
+	/*
+	if (t <= Tt) {
+		Fz = P/Tt*t;
+	} else if (t > Tt && t <= 3.0*Tt) {
+		Fz =  P * ( 1.0 - (t-Tt) / Tt );
+	} else if (t> 3.0*Tt && t < 5.0*Tt) {
+		Fz =  P * ( -1.0 + (t - 3.0*Tt) / Tt );
+	} */
+
+
+    // triaxial + shearing
 
 	if (t <= Tt) {
 		Fz = P/Tt*t;
-		//Fhx = -Fz/2;
-		//Fhy = -Fz/2;
-	} else if (t > Tt && t <= 3.0*Tt) {
-		//Fhx = -P/2;
-		//Fhy = -P/2;
-		Fz =  P * ( 1.0 - (t-Tt) / Tt );
-	} else if (t> 3.0*Tt && t < 5.0*Tt) {
-		//Fhx = -P/2 * ( 1 - (t-2*Tt)/Tt );
-		//Fhy = -P/2 * ( 1 - (t-2*Tt)/Tt );
-		Fz =  P * ( -1.0 + (t - 3.0*Tt) / Tt );
+		Fy = 0;
+		//Fy = 0.0;
+		//Fz = psi *psi * ( 3.0 - 2.0 * psi) * P;
+	} else if (t > Tt && t <= 2.0*Tt) {
+		Fy = P/Tt*(t-Tt);
+		//Fy =   P * ( 1.0 - (t-Tt) / Tt );
+	} else if (t> 2.0*Tt && t <= 4.0*Tt) {
+		Fy =  P * ( 1.0 - (t-2.0*Tt) / Tt );
+		//Fz = P ;
+	} else {
+		Fy =  P * ( -1.0 + (t-4.0*Tt) / Tt );
+		//Fz = P ;
 	}
+
+	// DSS
+/*
+	if (t <= Tt) {
+		Fy = P/Tt*t;
+	} else if (t > Tt && t <= 3.0*Tt) {
+		Fy =  P * ( 1.0 - (t-Tt) / Tt );
+	} else if (t> 3.0*Tt && t < 5.0*Tt) {
+		Fy =  P * ( -1.0 + (t - 3.0*Tt) / Tt );
+	} */
+
 
 	for ( nindex = 0; nindex < myMesh->nharbored; nindex++ ) {
 
@@ -4231,143 +4268,49 @@ void set_top_displacements( mesh_t     *myMesh,
 		fvector_t *tm2Disp;
 		tm2Disp = mySolver->tm2 + nindex;
 
-		//if ( z_m == 0.0 )
-		//	tm2Disp->f[2] = Fz;
 
-		if ( x_m == 0.0 )
-			tm2Disp->f[0] = 0;
+		if ( t <= Tt ) {
 
-		if ( y_m == 0.0 )
-			tm2Disp->f[1] = 0;
+			if ( z_m == 0.0 ) {
+				tm2Disp->f[2] = Fz;
+			}
 
-		// if ( x_m == totalDomainLx )
-		//tm2Disp->f[0] = -Fz / 1.0;
+			 if ( x_m == 0.0 )
+				tm2Disp->f[0] = 0.0;
 
-		 //if ( y_m == totalDomainLy )
-		 //tm2Disp->f[1] = -Fz / 1.0;
+			if ( y_m == 0.0 )
+				tm2Disp->f[1] = 0.0;
+
+			if ( z_m == totalDomainDepth )
+				tm2Disp->f[2] = 0.0;
+
+
+		} else {
+
+			if ( z_m == 0.0 )
+				tm2Disp->f[1] = Fy;
+
+			if ( z_m == totalDomainDepth ){
+				tm2Disp->f[1] = 0.0;
+			}
+
+			tm2Disp->f[0] = 0.0;
+			tm2Disp->f[2] = 0.0;
+
+		}
+
+
+		/*
+		 if ( x_m == totalDomainLx )
+			tm2Disp->f[0] = Fz / 2.0 ;
+
+		if ( y_m == totalDomainLy )
+			tm2Disp->f[1] = Fz / 2.0 ; */
 
 	}
 
 	return;
 
-	/*
-	double vmax= 4.0 * 1.25 * 0.25/10;
-
-    int32_t nindex;
-
-    double P = 0.015 , Tt = 50.0, F, Fz;
-    double t=(step+1)*dt;
-
-    if (t<=Tt) {
-        F =  vmax/Tt*t;
-
-    } else if ( t > Tt && t <= 2.0*Tt ) {
-    	F = ( 1.0 - 1.0/Tt * (t -Tt) ) * vmax;
-
-    } else if ( t > 2*Tt && t <= 3.0*Tt ) {
-    	F = ( 0.25 + 0.75/Tt * (t - 2*Tt) ) * vmax;
-
-    } else if ( t > 3*Tt && t <= 4.0*Tt ) {
-    	F = ( 1.0 - 0.75/Tt * (t - 3*Tt) ) * vmax;
-
-    } else if ( t > 4*Tt && t <= 5.0*Tt ) {
-    	F = ( 0.25 - 2.75/Tt * (t - 4*Tt) ) * vmax;
-
-
-    } else if ( t > 5*Tt && t <= 6.0*Tt ) {
-    	F = ( -2.5 + 2.45/Tt * (t - 5*Tt) ) * vmax;
-
-    } else if ( t > 6*Tt && t <= 7.0*Tt ) {
-    	F = ( -0.05 - 0.30/Tt * (t - 6*Tt) ) * vmax;
-
-    } else if ( t > 7*Tt && t <= 8.0*Tt ) {
-    	F = ( -0.35 + 0.30/Tt * (t - 7*Tt) ) * vmax;
-
-    } else {
-    	F = ( -0.05 + 2.55/Tt * (t - 8*Tt) ) * vmax;
-    } */
-
-
-	/* r0 = linspace(0,2.5*vmax,Ndiv);
-	r1 = linspace(2.5*vmax,0.25*vmax,Ndiv);
-	r2 = linspace(0.25*vmax,1.0*vmax,Ndiv);
-	r3 = linspace(1.0*vmax,0.25*vmax,Ndiv);
-	r4 = linspace(0.25*vmax,-2.5*vmax,Ndiv);
-	r5 = linspace(-2.5*vmax,-0.05*vmax,Ndiv);
-	r6 = linspace(-0.05*vmax,-0.35*vmax,Ndiv);
-	r7 = linspace(-0.35*vmax,-0.05*vmax,Ndiv);
-	r8 = linspace(-0.05*vmax,2.5*vmax,Ndiv); */
-
-/*
-	    if (t<=Tt) {
-	        F = P/Tt*t;
-	    }
-	    else if (t>Tt && t <= 3.0*Tt ) {
-	        F = P - P/Tt * (t-Tt);
-	    }
-	    else if (t>3.0*Tt && t <= 5.0*Tt ) {
-	        F = -P + P/Tt * (t-3.0*Tt);
-	    }
-	    else if ( t>5.0*Tt && t <= 6.0*Tt ) {
-	        F = P - P/Tt * (t-5.0*Tt);
-	    }
-	    else
-	        F = 0.0;
-
-	    if (t<=Tt){
-	        Fz = P*t/Tt;
-	    }
-	    else {
-	        Fz = P;
-	    }
-
-*/
-
-    /*
-	    for ( nindex = 0; nindex < myMesh->nharbored; nindex++ ) {
-
-	        double z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].z;
-
-	       if ( z_m == 0.0) {
-	        fvector_t *tm2Disp;
-	        tm2Disp = mySolver->tm2 + nindex;
-	        tm2Disp->f[2] = 0;
-	        tm2Disp->f[1] = F;
-	        tm2Disp->f[0] = 0;
-	       }
-	   }
-
-	    return;  */
-
-   /*
-    int32_t nindex;
-    double t=step*dt, A=0.02, disp_y=0, Tt=50.0;
-
-    if (t <= Tt )
-    	disp_y = A/Tt * t;
-    else if ( t>Tt && t <= 3.0*Tt )
-    	disp_y = A - A/Tt * (t-Tt);
-    else if (t > 3.0*Tt && t <= 4.0*Tt )
-    	disp_y = -A + A/Tt * (t-3.0*Tt);
-    else
-    	disp_y = 0.0;
-
-    for ( nindex = 0; nindex < myMesh->nharbored; nindex++ ) {
-
-        double z_m = (myMesh->ticksize)*(double)myMesh->nodeTable[nindex].z;
-
-        if ( z_m == 0.0 ) {
-            fvector_t *tm2Disp;
-            tm2Disp = mySolver->tm2 + nindex;
-            tm2Disp->f[0] = -disp_y*2.0;
-            //tm2Disp->f[1] =  A * sin(w*t) / (w * w)   ;
-            tm2Disp->f[1] =  disp_y   ;
-            //tm2Disp->f[2] = 0;
-
-        }
-    }
-
-    return; */
 }
 
 
@@ -4639,7 +4582,7 @@ void compute_addforce_pressure (mesh_t     *myMesh,
     int32_t   eindex;
     int32_t   nl_eindex;
     double x_m, y_m, z_m;
-	double t=(step+1)*dt, Tt=40.0;
+	double t=(step)*dt, Tt=5.0;
 
     /* Loop on the number of elements */
     for (nl_eindex = 0; nl_eindex < myNonlinElementsCount; nl_eindex++) {
@@ -4661,7 +4604,7 @@ void compute_addforce_pressure (mesh_t     *myMesh,
         h    = (double)edata->edgesize;
 
 
-        double Pmax = 10*20*1000 * h * h  * dt * dt ;
+        double Pmax = 10*1*1000 * h * h  * dt * dt ;
         double P = Pmax *  t / Tt;
 
         /* Loop over the 8 element nodes:
@@ -4764,7 +4707,7 @@ void compute_nonlinear_state ( mesh_t     *myMesh,
 		double         mu, lambda; /* Elasticity material constants */
 		double         XI, QC;
 		fvector_t      u[8];
-		qptensors_t   *stresses, *tstrains, *tstrains1, *pstrains1, *pstrains2, *alphastress1, *alphastress2, *Sref;
+		qptensors_t   *stresses, *tstrains, *tstrains1, *pstrains1, *pstrains2, *alphastress1, *alphastress2, *Sref, *S0;
 		qpvectors_t   *epstr1, *epstr2,   *psi_n,   *lounlo_n,   *Sv_n,   *Sv_max, *kappa, *kappa_im, *xi_im;
 
 		/* Capture data from the element and mesh */
@@ -4799,6 +4742,8 @@ void compute_nonlinear_state ( mesh_t     *myMesh,
 		kappa        = myNonlinSolver->kappa        + nl_eindex;
 		Sref         = myNonlinSolver->Sref         + nl_eindex;
 
+		S0           = myNonlinSolver->S0           + nl_eindex;
+
 		kappa_im     = myNonlinSolver->kappa_impl   + nl_eindex;
 		xi_im        = myNonlinSolver->xi_impl      + nl_eindex;
 
@@ -4813,8 +4758,25 @@ void compute_nonlinear_state ( mesh_t     *myMesh,
 			}
 		}
 
+
+		if ( step * theDeltaT == 20.0 ) {
+			for (i = 0; i < 8; i++) {
+				S0->qp[i] = copy_tensor( stresses->qp[i] );
+				//reset previous strains
+				tstrains->qp[i] = zero_tensor();
+				//stresses->qp[i] = zero_tensor();
+			}
+		}
+
+		double po=89;
+		if ( step * theDeltaT == 25.0 ) {
+			po=78;
+		}
+
+
+
 		/* Capture displacements */
-		if ( get_displacements(mySolver, elemp, u) == 0 ) {
+		if ( get_displacements(mySolver, elemp, u) == 0 &&  ( step * theDeltaT < 20.0 ) ) {
 			/* If all displacements are zero go for next element */
 			continue;
 		}
@@ -4852,11 +4814,15 @@ void compute_nonlinear_state ( mesh_t     *myMesh,
 				double ErrBA=0;
 
 				double po=90;
-				if (i==0 && eindex == 0 && ( step == 7 || step == 6 || step == 5 ) ) {
+				if (  step * theDeltaT == 20.0  )
 					po=89;
+
+				if ( step  == 80012 && i==4  ) {
+					po=78;
 				}
 
-				material_update ( *enlcons,           tstrains->qp[i],      tstrains1->qp[i],   pstrains1->qp[i],  alphastress1->qp[i], epstr1->qv[i],   sigma0,        theDeltaT,
+
+				material_update ( *enlcons,           tstrains->qp[i],      tstrains1->qp[i],   pstrains1->qp[i],  alphastress1->qp[i], epstr1->qv[i],   S0->qp[i],        theDeltaT,
 						          &pstrains2->qp[i],  &alphastress2->qp[i], &stresses->qp[i],   &epstr2->qv[i],    &enlcons->fs[i],     &psi_n->qv[i],
 						          &lounlo_n->qv[i], &Sv_n->qv[i], &Sv_max->qv[i], &kappa->qv[i], &Sref->qp[i], &flagTolSubSteps, &flagNoSubSteps, &ErrBA,  &kappa_im->qv[i],  &xi_im->qv[i]);
 
