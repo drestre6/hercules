@@ -4561,7 +4561,6 @@ static void solver_run()
         solver_compute_force_planewaves( Global.myMesh, Global.mySolver, Param.theDeltaT, step, Global.theK1, Global.theK2 );
         //solver_compute_force_baseAccel( Global.mySolver, Global.myMesh, step );
 
-
         Timer_Stop( "Compute Physics" );
 
         Timer_Start( "Communication" );
