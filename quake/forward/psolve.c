@@ -1125,7 +1125,7 @@ static void  open_cvmdb(void){
     }
 
     /* Check the ranges of the mesh and the scope of the CVM etree */
-    /* if ((Param.theRegionLat < myctl->region_origin_latitude_deg) ||
+    if ((Param.theRegionLat < myctl->region_origin_latitude_deg) ||
         (Param.theRegionLong < myctl->region_origin_longitude_deg) ||
         (Param.theRegionDepth < myctl->region_depth_shallow_m) ||
         (Param.region_depth_deep_m > myctl->region_depth_deep_m) ||
@@ -1138,19 +1138,15 @@ static void  open_cvmdb(void){
         fprintf(stderr, "Mesh area out of the CVM etree\n");
         MPI_Abort(MPI_COMM_WORLD, ERROR );
     	exit( 1 );
-    } */
+    }
 
     /* Compute the coordinates of the origin of the mesh coordinate
        system in the CVM etree domain coordinate system */
-    /* Global.theXForMeshOrigin = (Param.theRegionLat
+    Global.theXForMeshOrigin = (Param.theRegionLat
 				- myctl->region_origin_latitude_deg) * DIST1LAT;
     Global.theYForMeshOrigin = (Param.theRegionLong
 				- myctl->region_origin_longitude_deg) * DIST1LON;
-    Global.theZForMeshOrigin = Param.theRegionDepth - myctl->region_depth_shallow_m; */
-
-    Global.theXForMeshOrigin = 0.0;
-    Global.theYForMeshOrigin = 0.0;
-    Global.theZForMeshOrigin = 0.0;
+    Global.theZForMeshOrigin = Param.theRegionDepth - myctl->region_depth_shallow_m;
 
     /* Free memory used by myctl */
     cvm_freedbctl(myctl);
@@ -1425,22 +1421,22 @@ setrec( octant_t* leaf, double ticksize, void* data )
                     z_m -= get_surface_shift();
 		}
 
-		//double output[3];
+		double output[3];
 		//material_property_relative_V444S_nointerp( Param.theRegionLong + y_m, Param.theRegionLat + x_m, -z_m, output);
-		//material_property_relative_V10_local( Param.theRegionLong + y_m, Param.theRegionLat + x_m, -z_m, output);
+		material_property_relative_V10_local( Param.theRegionLong + y_m, Param.theRegionLat + x_m, -z_m, output);
 
         //if ( output[0] < 0.0 || output[1] < 0.0  || output[2] < 0.0   ) {
         //fprintf(stdout,"Done Setrec at xm =%f, ym=%f, zm=%f with Vp =%f, Vs=%f, rho=%f \n", Param.theRegionLong + y_m,  Param.theRegionLat + x_m, -z_m , output[1], output[0], output[2] );
 
-		/* g_props.Vs =  output[0];
+		g_props.Vs =  output[0];
 		g_props.Vp =  output[1];
-		g_props.rho = output[2];  */
+		g_props.rho = output[2];
 
-		 res = cvm_query( Global.theCVMEp, y_m, x_m, z_m, &g_props );
+		/* res = cvm_query( Global.theCVMEp, y_m, x_m, z_m, &g_props );
 
 		if (res != 0) {
 		    continue;
-		}
+		} */
 
 		if ( g_props.Vs < g_props_min.Vs ) {
 		    /* assign minimum value of vs to produce elements
@@ -2258,9 +2254,9 @@ mesh_generate()
 
 #ifdef USECVMDB
     /* Close the material database */
-    etree_close(Global.theCVMEp);
+    //etree_close(Global.theCVMEp);
 #else
-    free(Global.theCVMRecord);
+    //free(Global.theCVMRecord);
 #endif /* USECVMDB */
 }
 
@@ -7510,23 +7506,26 @@ mesh_correct_properties( etree_t* cvm )
 
             		}
 
-            		// double output[3];
+            		double output[3];
             		//material_property_relative_V444S_nointerp( Param.theRegionLong + east_m, Param.theRegionLat + north_m, -depth_m, output);
-            		//material_property_relative_V10_local( Param.theRegionLong + east_m, Param.theRegionLat + north_m, -depth_m, output);
+            		material_property_relative_V10_local( Param.theRegionLong + east_m, Param.theRegionLat + north_m, -depth_m, output);
 
-                   res = cvm_query( Global.theCVMEp, east_m, north_m,
-                                     depth_m, &g_props );
+            		//fprintf( stdout, " vp=%lf, vs=%lf, rho=%lf, east = %lf, north = %lf, depth = %lf \n  ",output[1], output[0], output[2],
+            		//		Param.theRegionLong + east_m, Param.theRegionLat + north_m, -depth_m   ) ;
 
-            		/* g_props.Vs =  output[0];
+            		// res = cvm_query( Global.theCVMEp, east_m, north_m,
+                   //                  depth_m, &g_props );
+
+            		g_props.Vs =  output[0];
             		g_props.Vp =  output[1];
-            		g_props.rho = output[2]; */
+            		g_props.rho = output[2];
 
-
+            		/*
                     if (res != 0) {
                         fprintf(stderr, "Cannot find the query point: east = %lf, north = %lf, depth = %lf \n",
                         		east_m, north_m, depth_m);
                         exit(1);
-                    }
+                    } */
 
         			vp  += g_props.Vp;
         			vs  += g_props.Vs;
@@ -7767,8 +7766,33 @@ int main( int argc, char** argv )
     /* Read input parameters from file */
     read_parameters(argc, argv);
 
+    // =*=*=*=*=*=*=*=*=*=*=*=*=  Istanbul Init  *=*=*=*=*=*=*=*=*=*=*=*=*=*=*
+    /* Comment these lines and uncomment open_cvmdb()
+     * to go back to the original version    */
+
     /* Create and open database */
-    open_cvmdb();
+    //open_cvmdb();
+
+    Global.theXForMeshOrigin = 0.0;
+    Global.theYForMeshOrigin = 0.0;
+    Global.theZForMeshOrigin = 0.0;
+
+    double  double_message_extra[3];
+
+    double_message_extra[0] = Global.theXForMeshOrigin;
+    double_message_extra[1] = Global.theYForMeshOrigin;
+    double_message_extra[2] = Global.theZForMeshOrigin;
+
+    MPI_Bcast(double_message_extra, 3, MPI_DOUBLE, 0, comm_solver);
+
+    Global.theXForMeshOrigin = double_message_extra[0];
+    Global.theYForMeshOrigin = double_message_extra[1];
+    Global.theZForMeshOrigin = double_message_extra[2];
+
+    Istanbul_init ( Global.myID );
+
+    // =*=*=*=*=*=*=*=*=*=*=*=*   finishing Intanbul init  =*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
+
 
     /* Initialize nonlinear parameters */
     if ( Param.includeNonlinearAnalysis == YES ) {
