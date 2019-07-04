@@ -87,12 +87,12 @@ Istanbul_initparameters ( ) {
     					soilVs_file[256], soilDepth_file[256], soilRho_file[256];
 
     /* read material info */
-	sprintf( zcoord_file,    "%s/Zcoord.in",          "inputfiles" );
-	sprintf( nlayer_file,    "%s/n_layer.in",         "inputfiles" );
-	sprintf( layerID_file,   "%s/Layer_start_ID.in",  "inputfiles" );
-	sprintf( soilVs_file,    "%s/Soil_Vs_data.in",    "inputfiles" );
-	sprintf( soilDepth_file, "%s/Soil_depth_data.in", "inputfiles" );
-	sprintf( soilRho_file,   "%s/Soil_rho_data.in",   "inputfiles" );
+	sprintf( zcoord_file,    "%s/Zcoord.in",          "inputfiles/materialfiles" );
+	sprintf( nlayer_file,    "%s/n_layer.in",         "inputfiles/materialfiles" );
+	sprintf( layerID_file,   "%s/Layer_start_ID.in",  "inputfiles/materialfiles" );
+	sprintf( soilVs_file,    "%s/Soil_Vs_data.in",    "inputfiles/materialfiles" );
+	sprintf( soilDepth_file, "%s/Soil_depth_data.in", "inputfiles/materialfiles" );
+	sprintf( soilRho_file,   "%s/Soil_rho_data.in",   "inputfiles/materialfiles" );
 
 	if ( ( ( fp_Zcoord    = fopen ( zcoord_file ,    "r") ) == NULL ) ||
 		 ( ( fp_nlay      = fopen ( nlayer_file ,    "r") ) == NULL ) ||
