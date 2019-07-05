@@ -2254,9 +2254,9 @@ mesh_generate()
 
 #ifdef USECVMDB
     /* Close the material database */
-    //etree_close(Global.theCVMEp);
+    etree_close(Global.theCVMEp);
 #else
-    //free(Global.theCVMRecord);
+    free(Global.theCVMRecord);
 #endif /* USECVMDB */
 }
 
@@ -7771,9 +7771,9 @@ int main( int argc, char** argv )
      * to go back to the original version    */
 
     /* Create and open database */
-    //open_cvmdb();
+    open_cvmdb();
 
-    Global.theXForMeshOrigin = 0.0;
+    /*Global.theXForMeshOrigin = 0.0;
     Global.theYForMeshOrigin = 0.0;
     Global.theZForMeshOrigin = 0.0;
 
@@ -7788,7 +7788,7 @@ int main( int argc, char** argv )
     Global.theXForMeshOrigin = double_message_extra[0];
     Global.theYForMeshOrigin = double_message_extra[1];
     Global.theZForMeshOrigin = double_message_extra[2];
-
+*/
     Istanbul_init ( Global.myID );
 
     // =*=*=*=*=*=*=*=*=*=*=*=*   finishing Intanbul init  =*=*=*=*=*=*=*=*=*=*=*=*=*=*=*
