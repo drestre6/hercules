@@ -399,12 +399,12 @@ void DRM_ForcesinElement ( mesh_t     *myMesh,
 
 			int  nodee = *(e_nodes + j);
 
-			//double z_ne = zo + h * CoordArr[ nodee ];   /* get zcoord */
-			//getRicker ( &myDisp, z_ne, tt, Vs ); /* get Displ */
+			double z_ne = zo + h * CoordArr[ nodee ];   /* get zcoord */
+			getRicker ( &myDisp, z_ne, tt, Vs ); /* get Displ */
 
-			myDisp.f[0] = theUg_NS[aux] + ( theUg_NS[aux + 1] - theUg_NS[aux] ) * remainder / theUg_Dt;
+			/* myDisp.f[0] = theUg_NS[aux] + ( theUg_NS[aux + 1] - theUg_NS[aux] ) * remainder / theUg_Dt;
 			myDisp.f[1] = theUg_EW[aux] + ( theUg_EW[aux + 1] - theUg_EW[aux] ) * remainder / theUg_Dt;
-			myDisp.f[2] = 0.0;
+			myDisp.f[2] = 0.0; */
 
 			MultAddMatVec( &theK1[ nodef ][ nodee ], &myDisp, -ep->c1, toForce );
 			MultAddMatVec( &theK2[ nodef ][ nodee ], &myDisp, -ep->c2, toForce );
@@ -426,11 +426,12 @@ void DRM_ForcesinElement ( mesh_t     *myMesh,
 
 			int  nodef = *(f_nodes + j);
 
-			//double z_nf = zo + h * CoordArr[ nodef ];   /* get zcoord */
-			//getRicker ( &myDisp, z_nf, tt, Vs ); /* get Displ */
-			myDisp.f[0] = theUg_NS[aux] + ( theUg_NS[aux + 1] - theUg_NS[aux] ) * remainder / theUg_Dt;
+			double z_nf = zo + h * CoordArr[ nodef ];   /* get zcoord */
+			getRicker ( &myDisp, z_nf, tt, Vs ); /* get Displ */
+
+			/* myDisp.f[0] = theUg_NS[aux] + ( theUg_NS[aux + 1] - theUg_NS[aux] ) * remainder / theUg_Dt;
 			myDisp.f[1] = theUg_EW[aux] + ( theUg_EW[aux + 1] - theUg_EW[aux] ) * remainder / theUg_Dt;
-			myDisp.f[2] = 0.0;
+			myDisp.f[2] = 0.0; */
 
 			MultAddMatVec( &theK1[ nodee ][ nodef ], &myDisp, ep->c1, toForce );
 			MultAddMatVec( &theK2[ nodee ][ nodef ], &myDisp, ep->c2, toForce );
