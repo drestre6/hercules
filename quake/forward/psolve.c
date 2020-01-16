@@ -233,6 +233,7 @@ static struct Param_t {
     noyesflag_t  useInfQk;
     noyesflag_t  includeIncidentPlaneWaves;
     noyesflag_t  includeHomogeneousHalfSpace;
+    noyesflag_t  IstanbulMaterialModel;
 
     int  theTimingBarriersFlag;
     stiffness_type_t   theStiffness;
@@ -371,7 +372,7 @@ monitor_print( const char* format, ... )
 static void read_parameters( int argc, char** argv ){
 
 #define LOCAL_INIT_DOUBLE_MESSAGE_LENGTH 18  /* Must adjust this if adding double params */
-#define LOCAL_INIT_INT_MESSAGE_LENGTH 23     /* Must adjust this if adding int params */
+#define LOCAL_INIT_INT_MESSAGE_LENGTH 24     /* Must adjust this if adding int params */
 
     double  double_message[LOCAL_INIT_DOUBLE_MESSAGE_LENGTH];
     int     int_message[LOCAL_INIT_INT_MESSAGE_LENGTH];
@@ -453,7 +454,7 @@ static void read_parameters( int argc, char** argv ){
     int_message[20] = (int)Param.includeTopography;
     int_message[21] = (int)Param.includeIncidentPlaneWaves;
     int_message[22] = (int)Param.includeHomogeneousHalfSpace;
-
+    int_message[23] = (int)Param.IstanbulMaterialModel;
 
     MPI_Bcast(int_message, LOCAL_INIT_INT_MESSAGE_LENGTH, MPI_INT, 0, comm_solver);
 
@@ -480,6 +481,7 @@ static void read_parameters( int argc, char** argv ){
     Param.includeTopography              = int_message[20];
     Param.includeIncidentPlaneWaves      = int_message[21];
     Param.includeHomogeneousHalfSpace    = int_message[22];
+    Param.IstanbulMaterialModel          = int_message[23];
 
     /*Broadcast all string params*/
     MPI_Bcast (Param.parameters_input_file,  256, MPI_CHAR, 0, comm_solver);
@@ -488,6 +490,10 @@ static void read_parameters( int argc, char** argv ){
     MPI_Bcast (Param.cvmdb_input_file,       256, MPI_CHAR, 0, comm_solver);
     MPI_Bcast (Param.mesh_etree_output_file, 256, MPI_CHAR, 0, comm_solver);
     MPI_Bcast (Param.planes_input_file,      256, MPI_CHAR, 0, comm_solver);
+
+    /*Broadcast domain's coords */
+    MPI_Bcast(Param.theSurfaceCornersLong ,     4, MPI_DOUBLE, 0, comm_solver);
+    MPI_Bcast(Param.theSurfaceCornersLat,       4, MPI_DOUBLE, 0, comm_solver);
 
     return;
 }
@@ -682,7 +688,8 @@ static int32_t parse_parameters( const char* numericalin )
               use_infinite_qk[64],
               include_topography[64],
               include_incident_planewaves[64],
-              include_hmgHalfSpace[64];
+              include_hmgHalfSpace[64],
+              IstanbulModel[64];
 
 
     damping_type_t   typeOfDamping     = -1;
@@ -699,6 +706,7 @@ static int32_t parse_parameters( const char* numericalin )
     noyesflag_t      haveTopography            = -1;
     noyesflag_t      includePlaneWaves         = -1;
     noyesflag_t      includeHmgHalfSpace       = -1;
+    noyesflag_t      includeIstanbulMatmodel   = -1;
 
 
     /* Obtain the specification of the simulation */
@@ -794,6 +802,7 @@ static int32_t parse_parameters( const char* numericalin )
         (parsetext(fp, "include_topography",             's', &include_topography          ) != 0) ||
         (parsetext(fp, "include_incident_planewaves",    's', &include_incident_planewaves ) != 0) ||
         (parsetext(fp, "include_hmg_halfspace",          's', &include_hmgHalfSpace        ) != 0) ||
+        (parsetext(fp, "Istanbul_material_model",        's', &IstanbulModel               ) != 0) ||
         (parsetext(fp, "simulation_velocity_profile_freq_hz",'d', &freq_vel                ) != 0) ||
         (parsetext(fp, "use_infinite_qk",                's', &use_infinite_qk             ) != 0) )
     {
@@ -819,8 +828,6 @@ static int32_t parse_parameters( const char* numericalin )
     size_t mesh_stat_len = 0;
     hu_config_get_string_def( fp, "stat_mesh_filename", &Param.theMeshStatFilename,
                   &mesh_stat_len, "stat-mesh.txt" );
-
-    fclose( fp );
 
     /* sanity check */
     if (freq <= 0) {
@@ -1034,6 +1041,36 @@ static int32_t parse_parameters( const char* numericalin )
                 include_hmgHalfSpace );
     }
 
+    if ( strcasecmp(IstanbulModel, "yes") == 0 ) {
+        includeIstanbulMatmodel = YES;
+    } else if ( strcasecmp(IstanbulModel, "no") == 0 ) {
+    	includeIstanbulMatmodel = NO;
+    } else {
+        solver_abort( __FUNCTION_NAME, NULL,
+                "Unknown response for Istanbul_material_model (yes or no): %s\n",
+                includeIstanbulMatmodel );
+    }
+
+     /* read domain corners */
+    int iCorner;
+    double *auxiliar;
+    auxiliar = (double *)malloc(sizeof(double)*8);
+
+    if ( parsedarray( fp, "domain_surface_corners", 8, auxiliar ) != 0) {
+    solver_abort( __FUNCTION_NAME, NULL,
+              "Error parsing domain_surface_corners field from %s\n",
+              numericalin);
+    }
+
+    for ( iCorner = 0; iCorner < 4; iCorner++){
+    	Param.theSurfaceCornersLong[ iCorner ] = auxiliar [ iCorner * 2 ];
+    	Param.theSurfaceCornersLat [ iCorner ] = auxiliar [ iCorner * 2 +1 ];
+    }
+    free(auxiliar);
+
+
+    fclose( fp );
+
     /* Init the static global variables */
 
     Param.theRegionLat      = region_origin_latitude_deg;
@@ -1091,6 +1128,8 @@ static int32_t parse_parameters( const char* numericalin )
 
     Param.includeHomogeneousHalfSpace = includeHmgHalfSpace;
 
+    Param.IstanbulMaterialModel       = includeIstanbulMatmodel ;
+
 
     strcpy( Param.theCheckPointingDirOut, checkpoint_path );
 
@@ -1110,6 +1149,7 @@ static int32_t parse_parameters( const char* numericalin )
     monitor_print("Include Topography:                 %s\n", include_topography);
     monitor_print("Include Incident Plane Waves:       %s\n", include_incident_planewaves);
     monitor_print("Include Homogeneous Halfspace:      %s\n", include_hmgHalfSpace);
+    monitor_print("Include Istanbul Material model:    %s\n", IstanbulModel);
     monitor_print("\n-------------------------------------------------\n\n");
 
     fflush(Param.theMonitorFileFp);
@@ -1371,6 +1411,7 @@ setrec( octant_t* leaf, double ticksize, void* data )
     tick_t halfticks;
     cvmpayload_t g_props;   /* cvm record with ground properties */
     cvmpayload_t g_props_min;   /* cvm record with the min Vs found */
+	vector3D_t Istmatmodel_origin;
 
     int i_x, i_y, i_z, n_points = 3;
     double points[3];
@@ -1384,6 +1425,13 @@ setrec( octant_t* leaf, double ticksize, void* data )
 
     halfticks = (tick_t)1 << (PIXELLEVEL - leaf->level - 1);
     edata->edgesize = ticksize * halfticks * 2;
+
+    if ( Param.IstanbulMaterialModel == YES ) {
+    	Istmatmodel_origin = compute_domain_coords_linearinterp(28.675,40.9565,
+        	                            Param.theSurfaceCornersLong,
+        	                            Param.theSurfaceCornersLat,
+        	                            Param.theDomainY,Param.theDomainX);
+    }
 
     /* Check for buildings and proceed according to the buildings setrec */
     if ( Param.includeBuildings == YES ) {
@@ -1445,9 +1493,25 @@ setrec( octant_t* leaf, double ticksize, void* data )
 
         if ( belongs2hmgHalfspace( y_m, x_m, z_m ) )
             res = get_halfspaceproperties( &g_props );
-        else
-            res = cvm_query( Global.theCVMEp, y_m, x_m, z_m, &g_props );
+        else if ( Param.IstanbulMaterialModel == YES ) {
 
+        	double output[3], x_rel, y_rel;
+
+        	x_rel = 4536400.00 + x_m - Istmatmodel_origin.x[0] ;
+        	y_rel =  388500.00 + y_m - Istmatmodel_origin.x[1];
+
+        	res = material_property_relative_V10_local( y_rel, x_rel, -z_m, output);
+
+        	if (res != 0) {
+        		res = cvm_query( Global.theCVMEp, y_m, x_m, z_m, &g_props );
+        	} else {
+        		g_props.Vs  = output[0];
+        		g_props.Vp  = output[1];
+        		g_props.rho = output[2];
+        	}
+
+        } else
+        	res = cvm_query( Global.theCVMEp, y_m, x_m, z_m, &g_props );
 
         if (res != 0) {
             continue;
@@ -7473,6 +7537,7 @@ mesh_correct_properties( etree_t* cvm )
     double   vs, vp, rho, s_0;
     double   points[3];
     int32_t  lnid0;
+	vector3D_t Istmatmodel_origin;
 
     // INTRODUCE BKT MODEL
 
@@ -7483,6 +7548,13 @@ mesh_correct_properties( etree_t* cvm )
     points[0] = 0.005;
     points[1] = 0.5;
     points[2] = 0.995;
+
+    if ( Param.IstanbulMaterialModel == YES ) {
+    	Istmatmodel_origin = compute_domain_coords_linearinterp(28.675,40.9565,
+        	                            Param.theSurfaceCornersLong,
+        	                            Param.theSurfaceCornersLat,
+        	                            Param.theDomainY,Param.theDomainX);
+    }
 
     /* iterate over mesh elements */
     for (eindex = 0; eindex < Global.myMesh->lenum; eindex++) {
@@ -7545,10 +7617,34 @@ mesh_correct_properties( etree_t* cvm )
 
                     }
 
-                    if ( belongs2hmgHalfspace( east_m, north_m, depth_m ) )
+/*                    if ( belongs2hmgHalfspace( east_m, north_m, depth_m ) )
                         res = get_halfspaceproperties( &g_props );
                     else
-                        res = cvm_query( Global.theCVMEp, east_m, north_m, depth_m, &g_props );
+                        res = cvm_query( Global.theCVMEp, east_m, north_m, depth_m, &g_props );*/
+
+                    if ( belongs2hmgHalfspace( east_m, north_m, depth_m ) )
+                        res = get_halfspaceproperties( &g_props );
+                    else if ( Param.IstanbulMaterialModel == YES ) {
+
+                    	double output[3], x_rel, y_rel;
+
+                    	x_rel = 4536400.00 + north_m - Istmatmodel_origin.x[0];
+                    	y_rel =  388500.00 + east_m  - Istmatmodel_origin.x[1];
+
+                    	res = material_property_relative_V10_local( y_rel, x_rel, -depth_m, output);
+
+                    	if (res != 0) {
+                    		res = cvm_query( Global.theCVMEp, east_m, north_m, depth_m, &g_props );
+                    	} else {
+                    		g_props.Vs  = output[0];
+                    		g_props.Vp  = output[1];
+                    		g_props.rho = output[2];
+                    	}
+
+                    } else
+                    	res = cvm_query( Global.theCVMEp, east_m, north_m, depth_m, &g_props );
+
+
 
                     if (res != 0) {
                         fprintf(stderr, "Cannot find the query point: east = %lf, north = %lf, depth = %lf \n",
@@ -7794,6 +7890,11 @@ int main( int argc, char** argv )
 
     /* Create and open database */
     open_cvmdb();
+
+    /* Initialize Istanbul material model */
+    if ( Param.IstanbulMaterialModel == YES ) {
+    	Istanbul_init ( Global.myID );
+    }
 
     /* Initialize nonlinear parameters */
     if ( Param.includeNonlinearAnalysis == YES ) {

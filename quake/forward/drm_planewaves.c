@@ -1321,111 +1321,7 @@ static double   *Soil_Vs_data;
 static double   *Soil_rho_data;
 static double   *Soil_depth_data;
 
-
-int32_t
-Istanbul_initparameters ( ) {
-
-	int i;
-    FILE               *fp_Zcoord, *fp_nlay, *fp_Layerid, *fp_soilVs, *fp_soilDepth, *fp_soilrho;
-    char                zcoord_file[256], nlayer_file[256], layerID_file[256],
-    					soilVs_file[256], soilDepth_file[256], soilRho_file[256];
-
-    /* read material info */
-	sprintf( zcoord_file,    "%s/Zcoord.in",          "inputfiles/materialfiles" );
-	sprintf( nlayer_file,    "%s/n_layer.in",         "inputfiles/materialfiles" );
-	sprintf( layerID_file,   "%s/Layer_start_ID.in",  "inputfiles/materialfiles" );
-	sprintf( soilVs_file,    "%s/Soil_Vs_data.in",    "inputfiles/materialfiles" );
-	sprintf( soilDepth_file, "%s/Soil_depth_data.in", "inputfiles/materialfiles" );
-	sprintf( soilRho_file,   "%s/Soil_rho_data.in",   "inputfiles/materialfiles" );
-
-	if ( ( ( fp_Zcoord    = fopen ( zcoord_file ,    "r") ) == NULL ) ||
-		 ( ( fp_nlay      = fopen ( nlayer_file ,    "r") ) == NULL ) ||
-		 ( ( fp_Layerid   = fopen ( layerID_file ,   "r") ) == NULL ) ||
-		 ( ( fp_soilVs    = fopen ( soilVs_file ,    "r") ) == NULL ) ||
-		 ( ( fp_soilDepth = fopen ( soilDepth_file , "r") ) == NULL ) ||
-		 ( ( fp_soilrho   = fopen ( soilRho_file ,   "r") ) == NULL ) ) {
-	    fprintf(stderr, "Istanbul material data files not found \n" );
-	    return -1;
-	}
-
-	Zcoord_2        = (double*)malloc( sizeof(double) * 4558 );
-	n_layer2        = (int*)malloc( sizeof(int) * 4558 );
-	Layer_start_ID  = (int*)malloc( sizeof(int) * 4558 );
-
-	Soil_Vs_data    = (double*)malloc( sizeof(double) * 28651 );
-	Soil_rho_data   = (double*)malloc( sizeof(double) * 28651 );
-	Soil_depth_data = (double*)malloc( sizeof(double) * 28651 );
-
-	if ( ( Zcoord_2        == NULL ) ||
-		 ( n_layer2        == NULL ) ||
-		 ( Layer_start_ID  == NULL ) ||
-		 ( Soil_Vs_data    == NULL ) ||
-		 ( Soil_rho_data   == NULL ) ||
-		 ( Soil_depth_data == NULL ) ) {
-		fprintf( stderr, "Error allocating transient arrays for Istanbul material data"
-				"in Istanbul_initparameters " );
-		return -1;
-	}
-
-	for ( i = 0; i < 4558; ++i) {
-	    fscanf(fp_Zcoord,   " %lf ", &(Zcoord_2[i]) );
-	    fscanf(fp_nlay,     " %d ", &(n_layer2[i]) );
-	    fscanf(fp_Layerid,  " %d ", &(Layer_start_ID[i]) );
-	}
-
-	for ( i = 0; i < 28651; ++i) {
-	    fscanf(fp_soilVs,    " %lf ", &(Soil_Vs_data[i]) );
-	    fscanf(fp_soilDepth, " %lf ", &(Soil_depth_data[i]) );
-	    fscanf(fp_soilrho,   " %lf ", &(Soil_rho_data[i]) );
-	}
-
-    fclose(fp_Zcoord);
-    fclose(fp_nlay);
-    fclose(fp_Layerid);
-    fclose(fp_soilVs);
-    fclose(fp_soilDepth);
-    fclose(fp_soilrho);
-
-    return 0;
-}
-
-void Istanbul_init ( int32_t myID ) {
-
-    /* Capturing data from file --- only done by PE0 */
-    if (myID == 0) {
-        if ( Istanbul_initparameters( ) != 0 ) {
-            fprintf(stderr,"Thread 0: Istanbul_local_init: "
-                    "Istanbul_initparameters error\n");
-            MPI_Abort(MPI_COMM_WORLD, ERROR);
-            exit(1);
-        }
-    }
-
-    if (myID != 0) {
-    	Zcoord_2        = (double*)malloc( sizeof(double) * 4558 );
-    	n_layer2        = (int*)malloc( sizeof(int) * 4558 );
-    	Layer_start_ID  = (int*)malloc( sizeof(int) * 4558 );
-
-    	Soil_Vs_data    = (double*)malloc( sizeof(double) * 28651 );
-    	Soil_rho_data   = (double*)malloc( sizeof(double) * 28651 );
-    	Soil_depth_data = (double*)malloc( sizeof(double) * 28651 );
-    }
-
-    /* Broadcast table of properties */
-    MPI_Bcast(Zcoord_2,         4558, MPI_DOUBLE, 0, comm_solver);
-    MPI_Bcast(n_layer2,         4558, MPI_INT, 0, comm_solver);
-    MPI_Bcast(Layer_start_ID,   4558, MPI_INT, 0, comm_solver);
-
-    MPI_Bcast(Soil_Vs_data,    28651, MPI_DOUBLE, 0, comm_solver);
-    MPI_Bcast(Soil_rho_data,   28651, MPI_DOUBLE, 0, comm_solver);
-    MPI_Bcast(Soil_depth_data, 28651, MPI_DOUBLE, 0, comm_solver);
-
-    return;
-
-}
-
-
-void material_property_relative_V10_local(double x_input, double y_input, double z_input, double output[3] ) {
+int material_property_relative_V10_local(double x_input, double y_input, double z_input, double output[3] ) {
 
 	int i;
 	int k;
@@ -1453,20 +1349,20 @@ void material_property_relative_V10_local(double x_input, double y_input, double
 
 	if (z_input > 0.0) {
 
-		output[0] = 0.0;
+		/* output[0] = 0.0;
 		output[1] = 0.0;
-		output[2] = 0.0;
+		output[2] = 0.0; */
 
-		return ;
+		return -1;
 	}
 
 	if (!(x_input >= xmin && x_input <= xmax && y_input >= ymin && y_input <= ymax && z_input >= -300.0)) {
 
-		output[0] = 3200.0;
+		/* output[0] = 3200.0;
 		output[1] = 5500.0;
-		output[2] = 2800.0;
+		output[2] = 2800.0; */
 
-		return ;
+		return -1;
 	}
 
 	if (x_input == xmax) {
@@ -1572,26 +1468,108 @@ void material_property_relative_V10_local(double x_input, double y_input, double
 		output[1] = zi_vp;
 		output[2] = zi_rho*1000;
 
+		return 0;
+
 }
 
+int32_t
+Istanbul_initparameters ( ) {
 
+	int i;
+    FILE               *fp_Zcoord, *fp_nlay, *fp_Layerid, *fp_soilVs, *fp_soilDepth, *fp_soilrho;
+    char                zcoord_file[256], nlayer_file[256], layerID_file[256],
+    					soilVs_file[256], soilDepth_file[256], soilRho_file[256];
 
+    /* read material info */
+	sprintf( zcoord_file,    "%s/Zcoord.in",          "inputfiles/materialfiles" );
+	sprintf( nlayer_file,    "%s/n_layer.in",         "inputfiles/materialfiles" );
+	sprintf( layerID_file,   "%s/Layer_start_ID.in",  "inputfiles/materialfiles" );
+	sprintf( soilVs_file,    "%s/Soil_Vs_data.in",    "inputfiles/materialfiles" );
+	sprintf( soilDepth_file, "%s/Soil_depth_data.in", "inputfiles/materialfiles" );
+	sprintf( soilRho_file,   "%s/Soil_rho_data.in",   "inputfiles/materialfiles" );
 
+	if ( ( ( fp_Zcoord    = fopen ( zcoord_file ,    "r") ) == NULL ) ||
+		 ( ( fp_nlay      = fopen ( nlayer_file ,    "r") ) == NULL ) ||
+		 ( ( fp_Layerid   = fopen ( layerID_file ,   "r") ) == NULL ) ||
+		 ( ( fp_soilVs    = fopen ( soilVs_file ,    "r") ) == NULL ) ||
+		 ( ( fp_soilDepth = fopen ( soilDepth_file , "r") ) == NULL ) ||
+		 ( ( fp_soilrho   = fopen ( soilRho_file ,   "r") ) == NULL ) ) {
+	    fprintf(stderr, "Istanbul material data files not found \n" );
+	    return -1;
+	}
 
+	Zcoord_2        = (double*)malloc( sizeof(double) * 4558 );
+	n_layer2        = (int*)malloc( sizeof(int) * 4558 );
+	Layer_start_ID  = (int*)malloc( sizeof(int) * 4558 );
 
+	Soil_Vs_data    = (double*)malloc( sizeof(double) * 28651 );
+	Soil_rho_data   = (double*)malloc( sizeof(double) * 28651 );
+	Soil_depth_data = (double*)malloc( sizeof(double) * 28651 );
 
+	if ( ( Zcoord_2        == NULL ) ||
+		 ( n_layer2        == NULL ) ||
+		 ( Layer_start_ID  == NULL ) ||
+		 ( Soil_Vs_data    == NULL ) ||
+		 ( Soil_rho_data   == NULL ) ||
+		 ( Soil_depth_data == NULL ) ) {
+		fprintf( stderr, "Error allocating transient arrays for Istanbul material data"
+				"in Istanbul_initparameters " );
+		return -1;
+	}
 
+	for ( i = 0; i < 4558; ++i) {
+	    fscanf(fp_Zcoord,   " %lf ", &(Zcoord_2[i]) );
+	    fscanf(fp_nlay,     " %d ", &(n_layer2[i]) );
+	    fscanf(fp_Layerid,  " %d ", &(Layer_start_ID[i]) );
+	}
 
+	for ( i = 0; i < 28651; ++i) {
+	    fscanf(fp_soilVs,    " %lf ", &(Soil_Vs_data[i]) );
+	    fscanf(fp_soilDepth, " %lf ", &(Soil_depth_data[i]) );
+	    fscanf(fp_soilrho,   " %lf ", &(Soil_rho_data[i]) );
+	}
 
+    fclose(fp_Zcoord);
+    fclose(fp_nlay);
+    fclose(fp_Layerid);
+    fclose(fp_soilVs);
+    fclose(fp_soilDepth);
+    fclose(fp_soilrho);
 
+    return 0;
+}
 
+void Istanbul_init ( int32_t myID ) {
 
+    /* Capturing data from file --- only done by PE0 */
+    if (myID == 0) {
+        if ( Istanbul_initparameters( ) != 0 ) {
+            fprintf(stderr,"Thread 0: Istanbul_local_init: "
+                    "Istanbul_initparameters error\n");
+            MPI_Abort(MPI_COMM_WORLD, ERROR);
+            exit(1);
+        }
+    }
 
+    if (myID != 0) {
+    	Zcoord_2        = (double*)malloc( sizeof(double) * 4558 );
+    	n_layer2        = (int*)malloc( sizeof(int) * 4558 );
+    	Layer_start_ID  = (int*)malloc( sizeof(int) * 4558 );
 
+    	Soil_Vs_data    = (double*)malloc( sizeof(double) * 28651 );
+    	Soil_rho_data   = (double*)malloc( sizeof(double) * 28651 );
+    	Soil_depth_data = (double*)malloc( sizeof(double) * 28651 );
+    }
 
+    /* Broadcast table of properties */
+    MPI_Bcast(Zcoord_2,         4558, MPI_DOUBLE, 0, comm_solver);
+    MPI_Bcast(n_layer2,         4558, MPI_INT, 0, comm_solver);
+    MPI_Bcast(Layer_start_ID,   4558, MPI_INT, 0, comm_solver);
 
+    MPI_Bcast(Soil_Vs_data,    28651, MPI_DOUBLE, 0, comm_solver);
+    MPI_Bcast(Soil_rho_data,   28651, MPI_DOUBLE, 0, comm_solver);
+    MPI_Bcast(Soil_depth_data, 28651, MPI_DOUBLE, 0, comm_solver);
 
+    return;
 
-
-
-
+}

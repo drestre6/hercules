@@ -44,4 +44,9 @@ int get_halfspaceproperties( cvmpayload_t* payload );
 int belongs2hmgHalfspace( double yp, double xp, double zp);
 
 
+int material_property_relative_V10_local(double x_input, double y_input, double z_input, double output[3] );
+int32_t Istanbul_initparameters ( );
+void Istanbul_init ( int32_t myID );
+
+
 #endif /* DRM_PLANEWAVES_H_ */
