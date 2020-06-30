@@ -7806,8 +7806,32 @@ mesh_correct_properties( etree_t* cvm )
 
                         for (k = 0; k < nlayers; k++) {
                             depth_k = depth_o * (k + 0.5);
-                            res = cvm_query( Global.theCVMEp, east_m, north_m,
-                                    depth_k, &g_props );
+
+                            if ( belongs2hmgHalfspace( east_m, north_m, depth_m ) )
+                                res = get_halfspaceproperties( &g_props );
+                            else if ( Param.IstanbulMaterialModel == YES ) {
+
+                                double output[3], x_rel, y_rel;
+
+                                x_rel = 4536400.00 + north_m - Istmatmodel_origin.x[0];
+                                y_rel =  388500.00 + east_m  - Istmatmodel_origin.x[1];
+
+                                res = material_property_relative_V10_local( y_rel, x_rel, -depth_m, output);
+
+                                if (res != 0) {
+                                    res = cvm_query( Global.theCVMEp, east_m, north_m, depth_m, &g_props );
+                                } else {
+                                    g_props.Vs  = output[0];
+                                    g_props.Vp  = output[1];
+                                    g_props.rho = output[2];
+                                }
+
+                            } else if (Param.useProfile == NO) {
+                                res = cvm_query( Global.theCVMEp, east_m, north_m, depth_m, &g_props );
+                            } else {
+                                res = profile_query(depth_m, &g_props);
+                            }
+
                             if ( assume_groundwatertable() )
                                 s_0 += depth_o * (g_props.rho - 1000.0 ) * 9.81 ;
                             else
