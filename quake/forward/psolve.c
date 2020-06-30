@@ -1656,7 +1656,11 @@ setrec( octant_t* leaf, double ticksize, void* data )
         	res = material_property_relative_V10_local( y_rel, x_rel, -z_m, output);
 
         	if (res != 0) {
-        		res = cvm_query( Global.theCVMEp, y_m, x_m, z_m, &g_props );
+                if (Param.useProfile == NO) {
+                    res = cvm_query( Global.theCVMEp, y_m, x_m, z_m, &g_props );
+                } else {
+                    res = profile_query(z_m, &g_props);
+                }
         	} else {
         		g_props.Vs  = output[0];
         		g_props.Vp  = output[1];
@@ -7819,7 +7823,11 @@ mesh_correct_properties( etree_t* cvm )
                                 res = material_property_relative_V10_local( y_rel, x_rel, -depth_m, output);
 
                                 if (res != 0) {
-                                    res = cvm_query( Global.theCVMEp, east_m, north_m, depth_m, &g_props );
+                                    if (Param.useProfile == NO) {
+                                        res = cvm_query( Global.theCVMEp, east_m, north_m, depth_m, &g_props );
+                                    } else {
+                                        res = profile_query(depth_m, &g_props);
+                                    }
                                 } else {
                                     g_props.Vs  = output[0];
                                     g_props.Vp  = output[1];
